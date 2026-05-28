@@ -8,7 +8,18 @@ export default function CustomCursor() {
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
-    // Hide default cursor globally
+    // Check for touch device - don't show custom cursor on mobile/touch devices
+    const isTouchDevice = 'ontouchstart' in window || 
+                          navigator.maxTouchPoints > 0 || 
+                          window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    
+    if (isTouchDevice) {
+      // Ensure default cursor is shown on touch devices
+      document.body.style.cursor = 'auto';
+      return;
+    }
+
+    // Hide default cursor globally (desktop only)
     document.body.style.cursor = 'none';
 
     const updatePosition = (e: MouseEvent) => {
@@ -17,7 +28,6 @@ export default function CustomCursor() {
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Expand cursor when hovering over clickable elements
       if (
         target.tagName === 'BUTTON' ||
         target.tagName === 'A' ||
@@ -49,9 +59,19 @@ export default function CustomCursor() {
     };
   }, []);
 
+  // Check for touch device - return null to not render cursor on mobile
+  const isTouchDevice = typeof window !== 'undefined' && (
+    'ontouchstart' in window || 
+    navigator.maxTouchPoints > 0 || 
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches
+  );
+
+  if (isTouchDevice) {
+    return null;
+  }
+
   return (
     <>
-      {/* Outer subtle cyan/white trailing ring */}
       <div
         className="fixed top-0 left-0 pointer-events-none z-[9999] rounded-full border border-white/30 transition-all duration-300 ease-out"
         style={{
@@ -65,7 +85,6 @@ export default function CustomCursor() {
         }}
       />
       
-      {/* Inner solid white dot */}
       <div
         className="fixed top-0 left-0 pointer-events-none z-[10000] rounded-full transition-transform duration-75 ease-out"
         style={{
