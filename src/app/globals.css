@@ -1,26 +1,523 @@
 @import "tailwindcss";
 
+@theme {
+  --font-hanken: var(--font-hanken-grotesk);
+  --font-geist-sans: var(--font-geist);
+
+  /* Color palette - Luxury Space & Classic Yacht Dark Mode */
+  --color-background: #0a0a0a; /* Deep space black */
+  --color-on-background: #ffffff; /* Ivory white */
+
+  /* Surface colors (for cards, panels) */
+  --color-surface-container-lowest: rgba(15, 15, 20, 0.8); /* Near transparent obsidian */
+  --color-surface-container-low: rgba(20, 20, 30, 0.9);
+  --color-surface-container: rgba(25, 25, 35, 0.95);
+  --color-surface-container-high: rgba(30, 30, 40, 0.98);
+  --color-surface-container-highest: rgba(35, 35, 45, 0.98);
+
+  /* Accents & Trim */
+  --color-primary: #E6C280; /* Champagne gold */
+  --color-primary-fixed: #D4B46A; /* Brushed gold */
+  --color-primary-fixed-dim: #B89652; /* Polished bronze */
+  --color-secondary: #8B4513; /* Dark walnut wood grain */
+  --color-tertiary: #CD7F32; /* Bronze */
+
+  /* Text colors */
+  --color-on-surface: #ffffff; /* Ivory white for primary headers */
+  --color-on-surface-variant: #E6C280; /* Champagne gold for selected states/accent labels */
+  --color-surface-tint: #8B4513; /* Muted bronze-gray for metadata */
+
+  /* Other colors */
+  --color-error: #FF6B6B;
+  --color-on-error: #ffffff;
+  --color-error-container: #8B0000;
+  --color-on-error-container: #ffffff;
+
+  /* For borders and outlines */
+  --color-outline: rgba(255, 255, 255, 0.1);
+  --color-outline-variant: rgba(255, 255, 255, 0.2);
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-text-muted: rgba(255, 255, 255, 0.4);
+  --color-live-indicator: #FFD700; /* Gold for live indicator */
+}
+
+/* Typography utilities — Exo 2 as primary font */
+@utility font-display-lg {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 800;
+}
+@utility font-headline-lg {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 700;
+}
+@utility font-headline-lg-mobile {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 700;
+}
+@utility font-headline-md {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 600;
+}
+@utility font-headline-sm {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 600;
+}
+@utility font-body-lg {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 400;
+}
+@utility font-body-md {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 400;
+}
+@utility font-body-sm {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 400;
+}
+@utility font-label-md {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 600;
+}
+@utility font-label-xs {
+  font-family: 'Exo 2', var(--font-exo2), sans-serif;
+  font-weight: 600;
+}
+@utility font-code {
+  font-family: var(--font-geist-sans), monospace;
+  font-weight: 500;
+}
+
+/* Text size utilities (safe names, no conflict with Tailwind's max-w-*) */
+@utility text-display-lg {
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.02em;
+}
+@utility text-headline-lg {
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+}
+@utility text-headline-md {
+  font-size: 24px;
+  line-height: 32px;
+}
+@utility text-headline-sm {
+  font-size: 20px;
+  line-height: 28px;
+}
+@utility text-body-lg {
+  font-size: 18px;
+  line-height: 28px;
+}
+@utility text-body-md {
+  font-size: 16px;
+  line-height: 24px;
+}
+@utility text-body-sm {
+  font-size: 14px;
+  line-height: 20px;
+}
+@utility text-label-md {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+}
+@utility text-label-xs {
+  font-size: 10px;
+  line-height: 14px;
+}
+@utility text-code {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Layout spacing constants as CSS custom properties only */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --margin-mobile: 16px;
+  --margin-desktop: 32px;
+  --gutter: 24px;
+  --color-background: #07080f;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Slow ambient background drift animation ── */
+@keyframes bgDrift {
+  0%   { background-position: 0% 0%, 100% 100%, 50% 0%; }
+  33%  { background-position: 30% 60%, 70% 30%, 80% 50%; }
+  66%  { background-position: 70% 20%, 20% 80%, 10% 70%; }
+  100% { background-position: 0% 0%, 100% 100%, 50% 0%; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html, body {
+  background-color: #07080f;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(99, 62, 230, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 10%, rgba(168, 85, 247, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 80% 85%, rgba(59, 130, 246, 0.15) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 40% at 55% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 60%),
+    linear-gradient(160deg, #07080f 0%, #0c0e1a 40%, #080c1a 70%, #07080f 100%);
+  background-size: 200% 200%, 180% 180%, 160% 160%, 200% 200%, 150% 150%, 100% 100%;
+  animation: bgDrift 25s ease-in-out infinite alternate;
+  color: #ffffff;
+  font-family: 'Exo 2', var(--font-exo2), sans-serif !important;
+  scroll-behavior: smooth;
+  min-height: 100vh;
+}
+
+
+/* Material Symbols Outlined font setup */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom Premium Scrollbar (Modern Glass) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Glass panel effect */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(53, 37, 205, 0.08);
+}
+
+/* Bento card */
+.bento-card {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  transition: all 0.3s ease;
+}
+.bento-card:hover {
+  box-shadow: 0 20px 40px rgba(53, 37, 205, 0.1);
+  transform: translateY(-4px);
+}
+
+/* Hero gradient */
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-surface-container-low) 0%,
+    var(--color-surface) 50%,
+    var(--color-primary-fixed) 100%
+  );
+}
+
+/* Spacing convenience classes — using inline px to avoid Tailwind conflicts */
+.px-margin-mobile { padding-left: var(--margin-mobile); padding-right: var(--margin-mobile); }
+.px-margin-desktop { padding-left: var(--margin-desktop); padding-right: var(--margin-desktop); }
+.p-margin-desktop { padding: var(--margin-desktop); }
+.gap-gutter { gap: var(--gutter); }
+
+/* Premium Drawer Transition & Scrollbar utilities */
+.drawer-shadow {
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.15);
+}
+
+.custom-thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-thin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+}
+.custom-thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 4px;
+}
+.custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Pulsing equalizer animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
+  }
+}
+.visualizer-glow {
+  animation: pulseGlow 4s infinite ease-in-out;
+}
+
+/* Mobile-friendly layout helpers */
+@media (max-width: 768px) {
+  .aircue-player-bar {
+    width: 96% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    height: auto !important;
+    min-height: 5.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .aircue-admin-sidebar {
+    transform: translateX(-100%);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================================================
+   ULTRA-PREMIUM MODERN GLASSMORPHISM THEME STYLES
+   ========================================================================== */
+
+/* 1. Deep Space Nebula Canvas — applies on top of body gradient */
+.cosmic-nebula-bg {
+  background-color: transparent !important;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 40%, rgba(109, 40, 217, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 45% at 85% 20%, rgba(236, 72, 153, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 50% at 50% 90%, rgba(6, 182, 212, 0.10) 0%, transparent 55%);
+  background-attachment: fixed;
+  background-size: cover;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Subtle grain overlay for depth */
+.cosmic-nebula-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* 2. Frosted Glass (Apple/Modern Style) */
+.modern-glass {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modern-glass-dark {
+  background: rgba(10, 10, 12, 0.6);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* 3. Premium Bento Cards */
+.premium-card {
+  background: linear-gradient(145deg, rgba(30, 30, 35, 0.4) 0%, rgba(15, 15, 18, 0.8) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    0 0 20px rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Subtle top highlight for cards */
+.premium-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.premium-card:hover::before {
+  opacity: 1;
+}
+
+/* 4. Active Glowing States */
+.glow-cyan-active {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  border-color: rgba(6, 182, 212, 0.5) !important;
+}
+
+.glow-emerald-live {
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.6));
+}
+
+.glow-rose-heart {
+  filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.6));
+}
+
+/* 5. Floating Player Controls */
+.glass-play-btn {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.glass-play-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.glass-play-btn:active {
+  transform: scale(0.95);
+}
+
+/* Smooth fluid transitions */
+.fluid-transition {
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Modern Pill Badges */
+.modern-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.modern-pill:hover, .modern-pill.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Sleek bottom player specific styles */
+.bottom-player-glass {
+  background: rgba(18, 18, 22, 0.85);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Modern Wave Visualizer */
+@keyframes sleekWave {
+  0%, 100% { transform: scaleY(0.3); opacity: 0.4; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+.sleek-wave-bar {
+  animation: sleekWave 1.2s infinite ease-in-out;
+  transform-origin: bottom;
+}
+
+/* Vinyl deck rotation */
+@keyframes spinVinyl {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.vinyl-rotation {
+  animation: spinVinyl 12s linear infinite;
+  transform-origin: center;
+}
+
+.animation-running {
+  animation-play-state: running !important;
+}
+
+.animation-paused {
+  animation-play-state: paused !important;
+}
+
+/* Custom premium scroll for sidebar list */
+.premium-sidebar-scroll {
+  overflow-y: auto;
+}
+.premium-sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.premium-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.premium-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(230, 194, 128, 0.15);
+  border-radius: 4px;
+}
+.premium-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 194, 128, 0.4);
+}
+
+/* Gold neon highlight */
+.gold-neon-border {
+  box-shadow: 0 0 15px rgba(230, 194, 128, 0.15), inset 0 0 15px rgba(230, 194, 128, 0.05);
+  border: 1px solid rgba(230, 194, 128, 0.25) !important;
+}
+
+.gold-neon-border-active {
+  box-shadow: 0 0 25px rgba(230, 194, 128, 0.35), inset 0 0 15px rgba(230, 194, 128, 0.1);
+  border: 1px solid rgba(230, 194, 128, 0.6) !important;
+}
+
+/* Multiple wave speeds for dynamic wave visuals */
+.wave-fast { animation-duration: 0.6s; }
+.wave-medium { animation-duration: 1.0s; }
+.wave-slow { animation-duration: 1.4s; }
+
+/* Bento card transitions */
+.bento-hover-effect {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bento-hover-effect:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(230, 194, 128, 0.1);
+}
+

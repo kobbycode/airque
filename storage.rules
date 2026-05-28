@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isCreator() {
+      return signedIn()
+        && hasUserDoc()
+        && (userDoc().data.role == 'creator' || userDoc().data.role == 'admin');
+    }
+
+    match /station-logos/{userId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isCreator()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isCreator() && request.auth.uid == userId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function role() {
+      return hasUserDoc() ? userDoc().data.role : 'listener';
+    }
+
+    function isAdmin() {
+      return signedIn() && role() == 'admin';
+    }
+
+    function isCreator() {
+      return signedIn() && (role() == 'creator' || role() == 'admin');
+    }
+
+    function ownsResource() {
+      return signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    function ownsIncoming() {
+      return signedIn() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /creators/{creatorId} {
+      allow read: if signedIn() && (request.auth.uid == creatorId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == creatorId;
+      allow update: if signedIn() && (request.auth.uid == creatorId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /stations/{stationId} {
+      allow read: if resource.data.status == 'ONLINE' || isCreator();
+      allow create: if isCreator() && ownsIncoming();
+      allow update: if isAdmin() || (isCreator() && ownsResource() && ownsIncoming());
+      allow delete: if isAdmin() || (isCreator() && ownsResource());
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      allow create: if isCreator();
+      allow update, delete: if isAdmin() || (isCreator() && (!('ownerId' in resource.data) || ownsResource()));
+    }
+
+    match /requests/{requestId} {
+      allow read, delete: if isCreator();
+      allow create: if request.resource.data.keys().hasOnly(['stationId', 'stationName', 'requester', 'song', 'artist', 'shoutout', 'timestamp'])
+        && request.resource.data.stationId is string
+        && request.resource.data.stationName is string
+        && request.resource.data.requester is string
+        && request.resource.data.song is string
+        && request.resource.data.artist is string
+        && request.resource.data.shoutout is string;
+      allow update: if false;
+    }
+
+    match /chats/{stationId}/messages/{messageId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['sender', 'text', 'timestamp'])
+        && request.resource.data.sender is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 500;
+      allow update, delete: if isCreator();
+    }
+
+    match /podcasts/{podcastId} {
+      allow read: if resource.data.status == 'PUBLISHED' || isCreator();
+      allow create: if isCreator() && ownsIncoming();
+      allow update: if isAdmin() || (isCreator() && ownsResource() && ownsIncoming());
+      allow delete: if isAdmin() || (isCreator() && ownsResource());
+    }
+
+    match /settings/{docId} {
+      allow read: if isCreator();
+      allow write: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll(['priority', 'category', 'subject', 'description', 'email', 'status'])
+        && request.resource.data.priority in ['low', 'medium', 'high']
+        && request.resource.data.status == 'OPEN'
+        && request.resource.data.subject is string
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 5000;
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      // Public read/create — these are user-facing activity logs (station tuned, chat, song request)
+      // Only creators can update (mark read), only admins can delete
+      allow read, create: if true;
+      allow update: if isCreator();
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isCreator();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /stationListeners/{stationId} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
