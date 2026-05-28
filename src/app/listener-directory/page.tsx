@@ -261,7 +261,7 @@ export default function Page() {
   const decrementListener = useCallback((stationId: string) => {
     try {
       const docRef = doc(db, 'stationListeners', stationId);
-      updateDoc(docRef, { count: increment(-1) }).catch(err => {
+      setDoc(docRef, { count: increment(-1) }, { merge: true }).catch(err => {
         console.error('Error decrementing listener:', err);
       });
     } catch (err) {
@@ -377,7 +377,7 @@ export default function Page() {
         countedStationIdRef.current = currentStationId;
         qualifyTimerRef.current = null;
         timerStationIdRef.current = null;
-      }, 60000); // 60 seconds
+      }, 10000); // 60 seconds
     }
 
     return () => {
