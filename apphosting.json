@@ -1,0 +1,11 @@
+{
+  "run": {
+    "command": "npm run start"
+  },
+  "env": [
+    {
+      "name": "NODE_VERSION",
+      "value": "20"
+    }
+  ]
+}
