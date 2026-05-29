@@ -2319,8 +2319,8 @@ export default function Page() {
               </p>
             </div>
 
-            {/* Live / Podcast Switcher */}
-            <div className="flex bg-white/5 border border-white/5 rounded-2xl p-1 relative">
+            {/* Live / Podcast Switcher — hidden on mobile (already in bottom nav & sidebar) */}
+            <div className="hidden md:flex bg-white/5 border border-white/5 rounded-2xl p-1 relative">
               <button
                 onClick={() => setActiveSegment('live')}
                 className={`px-5 py-2 rounded-xl text-[12px] font-bold tracking-wide transition-all cursor-pointer ${activeSegment === 'live'
