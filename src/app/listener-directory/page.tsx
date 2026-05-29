@@ -2458,7 +2458,7 @@ export default function Page() {
       {/* ────────────────────────────────────────────────────────
           3.Persistent Control Player Cockpit Bar (Floating)
           ──────────────────────────────────────────────────────── */}
-      {(activeStation || activePodcast) && (
+      {activeSegment !== 'youtube' && (activeStation || activePodcast) && (
         <footer className="fixed bottom-[76px] md:bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl h-20 md:h-24 bg-surface-container-highest/90 backdrop-blur-2xl border border-outline-variant/60 rounded-2xl md:rounded-[28px] z-40 flex items-center justify-between px-4 md:px-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] select-none">
 
         {/* Canvas Visualizer Background */}
