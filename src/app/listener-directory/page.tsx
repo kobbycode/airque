@@ -2179,49 +2179,30 @@ export default function Page() {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                {activeSegment === 'live' ? 'LIVE ON-AIR' : 'PODCAST MODE'}
+                PODCAST MODE
               </span>
               <span className="px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase bg-white/5 border border-white/5 text-white/50">
-                {activeSegment === 'live'
-                  ? (activeStation?.bitrate || '128kbps')
-                  : (activePodcast?.genre || 'Podcast')}
+                {activePodcast?.genre || 'Podcast'}
               </span>
             </div>
 
             <div className="flex flex-col gap-1.5 w-full">
               <span className="text-[12px] font-black text-cyan-400 uppercase tracking-widest">Now Broadcasting</span>
               <h1 className="font-display-lg text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-white leading-none truncate">
-                {activeSegment === 'live'
-                  ? (activeStation?.name || 'Select Station')
-                  : (activePodcast?.title || 'Select Episode')}
+                {activePodcast?.title || 'Select Episode'}
               </h1>
               <p className="text-[14px] text-white/50 flex items-center gap-2 font-medium">
                 <span className="material-symbols-outlined text-[16px] text-white/30">
-                  {activeSegment === 'live' ? 'radio' : 'podcast'}
+                  podcast
                 </span>
-                {activeSegment === 'live'
-                  ? (activeStation?.location || 'Unknown frequency')
-                  : (activePodcast?.podcastName || 'Ghana Archive')}
+                {activePodcast?.podcastName || 'Ghana Archive'}
                 <span className="w-1 h-1 rounded-full bg-white/20" />
-                {activeSegment === 'live' ? (activeStation?.region || 'Ghana') : 'Ghana'}
+                Ghana
               </p>
             </div>
 
             {/* active telemetry metadata */}
             <div className="flex flex-wrap items-start gap-6 mt-1 border-t border-b border-white/5 py-3.5 w-full select-none">
-              {activeSegment === 'live' && activeStation?.id && (
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-white/40 uppercase tracking-wider font-bold">Listening now</span>
-                  <span className="text-xl font-bold text-white tracking-wide flex items-center gap-2 mt-0.5">
-                    <span className="material-symbols-outlined text-[18px] text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                    {displayCount(activeStation.id) > 0 ? (
-                      formatListenerLabel(displayCount(activeStation.id))
-                    ) : (
-                      <span className="text-white/35 text-base font-semibold">Be the first</span>
-                    )}
-                  </span>
-                </div>
-              )}
               <div className="flex flex-col">
                 <span className="text-[11px] text-white/40 uppercase tracking-wider font-bold">Equalizer Preset</span>
                 <span className="text-xl font-bold tracking-wide flex items-center gap-2 mt-0.5 text-[#E6C280]">
@@ -2234,30 +2215,13 @@ export default function Page() {
             <div className="flex items-center gap-4 mt-2 select-none">
               <button
                 onClick={togglePlayPause}
-                disabled={
-                  (activeSegment === 'live' && (!activeStation || !activeStation.streamUrl)) ||
-                  (activeSegment === 'podcast' && (!activePodcast || !activePodcast.streamUrl))
-                }
+                disabled={!activePodcast || !activePodcast.streamUrl}
                 className="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center hover:bg-cyan-300 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 cursor-pointer shadow-[0_8px_24px_rgba(255,255,255,0.15)] shrink-0"
               >
                 <span className="material-symbols-outlined text-[28px] text-black" style={{ fontVariationSettings: "'FILL' 1" }}>
                   {isPlaying ? 'pause' : 'play_arrow'}
                 </span>
               </button>
-
-              {activeSegment === 'live' && activeStation && (
-                <button
-                  onClick={() => toggleFavorite(activeStation.id || '')}
-                  className="w-14 h-14 rounded-2xl border border-white/10 hover:border-pink-500/40 hover:bg-pink-500/10 flex items-center justify-center transition-all cursor-pointer group"
-                >
-                  <span className={`material-symbols-outlined text-[20px] transition-all ${favorites.includes(activeStation.id || '') ? 'text-pink-500 glow-rose-heart' : 'text-white/40 group-hover:text-white'
-                    }`}
-                    style={{ fontVariationSettings: favorites.includes(activeStation.id || '') ? "'FILL' 1" : "'FILL' 0" }}
-                  >
-                    favorite
-                  </span>
-                </button>
-              )}
             </div>
 
           </div>
@@ -2280,9 +2244,7 @@ export default function Page() {
 
               {/* vinyl sticker logo */}
               <div className="w-16 h-16 rounded-full bg-neutral-900 border-2 border-neutral-800 flex items-center justify-center overflow-hidden shadow-md relative z-10 pointer-events-none">
-                {activeSegment === 'live' && activeStation ? (
-                  renderStationLogo(activeStation.logoUrl || '', activeStation.name, "rounded-full")
-                ) : activeSegment === 'podcast' && activePodcast ? (
+                {activePodcast ? (
                   <div className="w-full h-full rounded-full bg-indigo-950 flex items-center justify-center overflow-hidden shadow-inner">
                     {activePodcast.logoUrl
                       ? <img src={activePodcast.logoUrl} alt="" className="w-full h-full object-cover" />
