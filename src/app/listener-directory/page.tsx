@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
@@ -1173,6 +1173,16 @@ export default function Page() {
                   <span className="material-symbols-outlined text-[18px]">podcasts</span>
                   Podcasts & Archives
                 </button>
+                <button
+                  onClick={() => { setActiveSegment('youtube'); setShowMobileSidebar(false); }}
+                  className={`flex items-center gap-3 h-10 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSegment === 'youtube'
+                      ? 'bg-white/10 text-white gold-neon-border'
+                      : 'text-white/50 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">smart_display</span>
+                  Live TV
+                </button>
               </nav>
 
               {/* Favorites inside drawer */}
@@ -1686,6 +1696,17 @@ export default function Page() {
             >
               <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeSegment === 'podcast' ? "'FILL' 1" : "'FILL' 0" }}>podcasts</span>
               Podcasts & Archives
+            </button>
+
+            <button
+              onClick={() => setActiveSegment('youtube')}
+              className={`flex items-center gap-3.5 h-11 px-4 rounded-xl text-[14px] font-semibold tracking-wide transition-all cursor-pointer ${activeSegment === 'youtube'
+                  ? 'bg-white/10 text-white gold-neon-border'
+                  : 'text-white/50 hover:text-white hover:bg-white/5'
+                }`}
+            >
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeSegment === 'youtube' ? "'FILL' 1" : "'FILL' 0" }}>smart_display</span>
+              Live TV
             </button>
           </nav>
 
@@ -2321,12 +2342,18 @@ export default function Page() {
 
             <div>
               <h2 className="font-display-lg text-[26px] font-black tracking-tight text-white leading-none">
-                {activeSegment === 'live' ? 'Ghanaian Broadcast Directory' : 'On-Demand Podcast Catchups'}
+                {activeSegment === 'live'
+                  ? 'Ghanaian Broadcast Directory'
+                  : activeSegment === 'podcast'
+                    ? 'On-Demand Podcast Catchups'
+                    : 'Live TV & Video Streams'}
               </h2>
               <p className="text-[13px] text-white/40 mt-1 font-medium">
                 {activeSegment === 'live'
                   ? (loading ? 'Connecting live...' : `Broadcasting live in ${activeRegion === 'All' ? 'all regions' : activeRegion}`)
-                  : `${podcasts.length} catchups and show archives published`}
+                  : activeSegment === 'podcast'
+                    ? `${podcasts.length} catchups and show archives published`
+                    : 'Watch live TV channels, webcams, and video broadcasts'}
               </p>
             </div>
 
@@ -2692,6 +2719,17 @@ export default function Page() {
         >
           <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeSegment === 'podcast' ? "'FILL' 1" : "'FILL' 0" }}>podcasts</span>
           <span className="text-[9px] uppercase tracking-wider scale-90">Podcasts</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSegment('youtube')}
+          className={`flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${activeSegment === 'youtube'
+              ? 'text-emerald-400 font-extrabold'
+              : 'text-white/40 hover:text-white/70'
+            }`}
+        >
+          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeSegment === 'youtube' ? "'FILL' 1" : "'FILL' 0" }}>smart_display</span>
+          <span className="text-[9px] uppercase tracking-wider scale-90">Live TV</span>
         </button>
 
         <button
