@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { normalizeTimestamp, type ChatMessage, type Podcast, type ScheduleBlock, type Station, type AppNotification } from '@/lib/types';
-import YouTubeLiveMonitor from '@/components/YouTubeLiveMonitor';
+import ChannelGrid from '@/components/ChannelGrid';
 import Link from 'next/link';
 import { useAuthState } from '@/lib/auth';
 import { formatListenerLabel, getDisplayListenerCount } from '@/lib/listener-presence';
@@ -2448,8 +2448,8 @@ export default function Page() {
                  })}
                </div>
             ) ) : (
-            /* YouTube Live TV grid */
-            <YouTubeLiveMonitor />
+            /* YouTube Live TV grid — channel cards */
+            <ChannelGrid />
           )}
          </section>
 
