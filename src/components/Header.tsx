@@ -4,8 +4,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  collection, onSnapshot, query, orderBy, limit, doc,
-  updateDoc, addDoc, writeBatch, serverTimestamp, Timestamp
+  collection, onSnapshot, query, where, orderBy, limit, doc,
+  updateDoc, addDoc, writeBatch, Timestamp
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db } from '@/lib/firebase';
@@ -14,47 +14,12 @@ import { DEMO_MODE } from '@/lib/demo';
 import { getHomeRoute, useAuthState } from '@/lib/auth';
 import type { AppNotification, AppUser, Station } from '@/lib/types';
 import { EditProfileModal, FavoritesModal, NotificationPrefsModal } from '@/components/ProfileMenuModals';
+import { useAlert } from '@/components/CustomAlert';
 
 interface HeaderProps {
   variant: 'landing' | 'directory' | 'admin' | 'creator';
   activeTab?: 'directory' | 'dashboard' | 'analytics' | 'schedules';
 }
-
-const MOCK_STATIONS: Station[] = [
-  {
-    id: 'joy-fm',
-    name: 'JOYFM',
-    location: 'Accra, 99.7MHz',
-    genre: 'News & Talk',
-    bitrate: '128kbps',
-    streamUrl: 'https://stream.zenolive.com/8vy1g1h15p8uv',
-    status: 'ONLINE',
-    region: 'Greater Accra',
-    logoUrl: 'mock-joy',
-  },
-  {
-    id: 'agoo-fm',
-    name: 'Agoo FM',
-    location: 'Agoo FM 96.9',
-    genre: 'News & Talk',
-    bitrate: '128kbps',
-    streamUrl: 'https://stream.zeno.fm/0t8yv7wuyzduv',
-    status: 'ONLINE',
-    region: 'Eastern',
-    logoUrl: 'mock-agoo',
-  },
-  {
-    id: 'empire-fm',
-    name: 'Empire FM',
-    location: 'Accra, 102.7 MHz',
-    genre: 'News & Talk',
-    bitrate: '128kbps',
-    streamUrl: 'https://stream.zeno.fm/8q7v2s49szduv',
-    status: 'ONLINE',
-    region: 'Ashanti',
-    logoUrl: 'mock-empire',
-  }
-];
 
 // ─── Notification types ────────────────────────────────────────────────────────
 const SEED_NOTIFS = [
@@ -64,24 +29,26 @@ const SEED_NOTIFS = [
 ];
 
 // Helper to format time relative to Firestore Timestamp / Date / milliseconds
-function getRelativeTime(createdAt: any): string {
+function getRelativeTime(createdAt: Date | number | string | Timestamp | { seconds: number } | null | undefined): string {
   if (!createdAt) return 'just now';
   let seconds = 0;
-  if (typeof createdAt.seconds === 'number') {
+  if (typeof createdAt === 'object' && 'seconds' in createdAt && typeof createdAt.seconds === 'number') {
     seconds = createdAt.seconds;
-  } else if (createdAt.toDate) {
+  } else if (createdAt instanceof Timestamp) {
     seconds = Math.floor(createdAt.toDate().getTime() / 1000);
   } else if (createdAt instanceof Date) {
     seconds = Math.floor(createdAt.getTime() / 1000);
   } else if (typeof createdAt === 'number') {
     seconds = Math.floor(createdAt / 1000);
-  } else {
+  } else if (typeof createdAt === 'string') {
     const parsed = new Date(createdAt);
     if (!isNaN(parsed.getTime())) {
       seconds = Math.floor(parsed.getTime() / 1000);
     } else {
       return 'just now';
     }
+  } else {
+    return 'just now';
   }
 
   const diff = Math.floor(Date.now() / 1000) - seconds;
@@ -98,16 +65,14 @@ function getRelativeTime(createdAt: any): string {
 function useStationSearch(query_: string) {
   const [stations, setStations] = useState<Station[]>([]);
   useEffect(() => {
-    const q = query(collection(db, 'stations'), orderBy('name'), limit(20));
+    const q = query(
+      collection(db, 'stations'),
+      where('status', '==', 'ONLINE'),
+      orderBy('name'),
+      limit(20)
+    );
     const unsub = onSnapshot(q, snap => {
-      const fsStations = snap.docs.map(d => ({ id: d.id, ...d.data() } as Station));
-      const merged = [...MOCK_STATIONS];
-      fsStations.forEach(fsStation => {
-        if (!merged.some(m => m.name.toLowerCase() === fsStation.name.toLowerCase())) {
-          merged.push(fsStation);
-        }
-      });
-      setStations(merged);
+      setStations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Station)));
     });
     return () => unsub();
   }, []);
@@ -271,6 +236,7 @@ function ProfilePanel({
     ? `${appUser.firstName || 'Station'} ${appUser.lastName || 'Manager'}`.trim()
     : 'Guest Listener';
   const creatorEmail = appUser?.email || 'Sign in to manage stations';
+  const { showConfirm } = useAlert();
 
   return (
     <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8)] border border-[#E6C280]/20 obsidian-glass-card overflow-hidden z-[200]">
@@ -388,7 +354,19 @@ function ProfilePanel({
         )}
 
         <button
-          onClick={() => signOut(auth).catch(err => console.error('Sign out failed:', err))}
+          onClick={() => showConfirm({
+            title: 'Confirm Sign Out',
+            message: 'Are you sure you want to sign out of your AirCue account? You will need to sign in again to access your station and broadcast controls.',
+            type: 'warning',
+            confirmText: 'Sign Out',
+            cancelText: 'Stay Logged In',
+            isDangerous: true,
+            onConfirm: () => {
+              signOut(auth)
+                .then(() => onClose())
+                .catch(err => console.error('Sign out failed:', err));
+            }
+          })}
           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
         >
           <span className="material-symbols-outlined text-[20px] text-error">logout</span>
@@ -489,7 +467,10 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
 
   // 2. Dynamic profile metrics calculation from stations database in real-time
   useEffect(() => {
-    const q = collection(db, 'stations');
+    const canReadAllStations = appUser?.role === 'admin' || appUser?.role === 'creator';
+    const q = canReadAllStations
+      ? query(collection(db, 'stations'))
+      : query(collection(db, 'stations'), where('status', '==', 'ONLINE'));
     const unsub = onSnapshot(q, snap => {
       const allStations = snap.docs.map(d => ({ id: d.id, ...d.data() } as Station));
       setStationsCount(allStations.length);
@@ -500,7 +481,7 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
     });
 
     return () => unsub();
-  }, []);
+  }, [appUser?.role]);
 
   // 3. Real-time subscription to station listeners to calculate aggregated total
   useEffect(() => {
@@ -538,9 +519,9 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
   // Auto-detect activeTab
   let activeTab = customActiveTab;
   if (!activeTab) {
-    if (pathname === '/admin') activeTab = 'dashboard';
-    else if (pathname === '/admin/analytics') activeTab = 'analytics';
-    else if (pathname === '/admin/schedules') activeTab = 'schedules';
+    if (pathname === '/admin' || pathname === '/admin/' || pathname.startsWith('/admin/stations')) activeTab = 'dashboard';
+    else if (pathname.startsWith('/admin/analytics')) activeTab = 'analytics';
+    else if (pathname.startsWith('/admin/schedules')) activeTab = 'schedules';
     else if (pathname === '/listener-directory') activeTab = 'directory';
     else if (pathname.startsWith('/station-dashboard')) activeTab = 'dashboard';
   }
@@ -660,7 +641,11 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
   );
 
   // ── Shared desktop search bar ───────────────────────────────────────────────
-  const renderDesktopSearch = (bg = 'bg-surface-container-lowest', border = 'border-outline-variant') => (
+  const renderDesktopSearch = (
+    bg = 'bg-surface-container-lowest',
+    border = 'border-outline-variant',
+    textCls = 'text-on-surface'
+  ) => (
     <div ref={searchRef} className="hidden lg:flex relative">
       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">search</span>
       <input
@@ -669,7 +654,7 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
         onChange={e => { setSearchValue(e.target.value); setNotifsOpen(false); setProfileOpen(false); }}
         onFocus={() => setSearchOpen(true)}
         onKeyDown={handleKeyDown}
-        className={`${bg} border ${border} rounded-full py-2 pl-10 pr-4 text-body-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all w-64`}
+        className={`${bg} ${textCls} border ${border} rounded-full py-2 pl-10 pr-4 text-body-sm placeholder:text-white/30 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all w-64`}
         placeholder="Search stations..."
       />
       {searchOpen && searchValue && (
@@ -696,14 +681,14 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
           {/* Left section: Logo and Directory nav */}
           <div className="flex items-center gap-4">
             <Link href="/" prefetch={false} className="hover:opacity-85 transition-opacity">
-              <img src="/logo.png" alt="AirCue" className="h-10 w-auto" />
+              <img src="/logo.png" alt="Ghana Radio" className="h-20 w-auto" />
             </Link>
-            <div className="relative">
-              <Link href="/listener-directory" prefetch={false} className="text-on-surface font-headline-md tracking-tighter">
+            <div className="relative group">
+              <Link href="/listener-directory" prefetch={false} className={`font-headline-md tracking-tighter transition-colors ${pathname === '/listener-directory' ? 'text-primary' : 'text-on-surface hover:text-primary'}`}>
                 Directory
               </Link>
               {/* Underline accent */}
-              <span className="absolute left-0 bottom-0 h-[1px] w-full bg-primary transition-all duration-300"></span>
+              <span className={`absolute left-0 -bottom-1 h-[2px] bg-primary transition-all duration-300 ${pathname === '/listener-directory' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
             </div>
           </div>
           {/* Center section: Pill-shaped Search Bar */}
@@ -747,14 +732,14 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
         <nav className="modern-glass-dark flex justify-between items-center w-full px-4 md:px-[32px] h-16 fixed top-0 z-50 fluid-transition">
           <div className="flex items-center gap-4">
             <Link href="/" prefetch={false} className="hover:opacity-85 transition-opacity">
-              <img src="/logo.png" alt="AirCue" className="h-10 w-auto" />
+              <img src="/logo.png" alt="Ghana Radio" className="h-20 w-auto" />
             </Link>
-            <div className="relative">
-              <Link href="/listener-directory" prefetch={false} className="text-on-surface font-headline-md tracking-tighter">
+            <div className="relative group">
+              <Link href="/listener-directory" prefetch={false} className={`font-headline-md tracking-tighter transition-colors ${pathname === '/listener-directory' ? 'text-primary' : 'text-on-surface hover:text-primary'}`}>
                 Directory
               </Link>
               {/* Underline accent */}
-              <span className="absolute left-0 bottom-0 h-[1px] w-full bg-primary transition-all duration-300"></span>
+              <span className={`absolute left-0 -bottom-1 h-[2px] bg-primary transition-all duration-300 ${pathname === '/listener-directory' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
             </div>
           </div>
           {/* Center section: Pill-shaped Search Bar */}
@@ -798,14 +783,14 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
         <header className="modern-glass-dark flex justify-between items-center w-full px-4 md:px-[32px] h-16 fixed top-0 z-50 fluid-transition">
           <div className="flex items-center gap-4">
             <Link href="/" prefetch={false} className="hover:opacity-85 transition-opacity">
-              <img src="/logo.png" alt="AirCue" className="h-10 w-auto" />
+              <img src="/logo.png" alt="Ghana Radio" className="h-20 w-auto" />
             </Link>
-            <div className="relative">
-              <Link href="/listener-directory" prefetch={false} className="text-on-surface font-headline-md tracking-tighter">
+            <div className="relative group">
+              <Link href="/listener-directory" prefetch={false} className={`font-headline-md tracking-tighter transition-colors ${pathname === '/listener-directory' ? 'text-primary' : 'text-on-surface hover:text-primary'}`}>
                 Directory
               </Link>
               {/* Underline accent */}
-              <span className="absolute left-0 bottom-0 h-[1px] w-full bg-primary transition-all duration-300"></span>
+              <span className={`absolute left-0 -bottom-1 h-[2px] bg-primary transition-all duration-300 ${pathname === '/listener-directory' ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
             </div>
           </div>
           {/* Center section: Pill-shaped Search Bar */}
@@ -830,8 +815,8 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
           <div className="flex items-center gap-4">
             {renderNavLinks(
               "hidden xl:flex gap-6",
-              "text-on-surface-variant font-label-md hover:text-primary transition-colors",
-              "text-primary border-b-2 border-primary pb-1 font-label-md"
+              "text-white/60 font-label-md hover:text-primary transition-colors",
+              "text-primary border-b-2 border-primary pb-1 font-label-md font-bold"
             )}
             {!appUser ? (
               <Link href="/login" prefetch={false}>
@@ -851,21 +836,21 @@ export default function Header({ variant, activeTab: customActiveTab }: HeaderPr
   return (
     <>
       {profileModals}
-      <header className="flex justify-between items-center w-full px-4 md:px-[32px] h-16 bg-surface-container border-b border-outline-variant">
+      <header className="modern-glass-dark flex justify-between items-center w-full px-4 md:px-[32px] h-16 border-b border-white/5">
         <div className="flex items-center gap-8">
-          <img src="/logo.png" alt="AirCue" className="h-10 w-auto" />
-          {renderDesktopSearch('bg-white', 'border-outline-variant')}
+          <img src="/logo.png" alt="Ghana Radio" className="h-20 w-auto" />
+          {renderDesktopSearch('bg-white/5', 'border-white/10', 'text-white')}
         </div>
         <div className="flex items-center gap-8">
           {renderNavLinks(
             "hidden xl:flex gap-8",
-            "text-on-surface-variant font-label-md hover:text-primary transition-colors",
-            "text-primary border-b-2 border-primary pb-1 font-label-md"
+            "text-white/50 font-label-md hover:text-primary transition-colors",
+            "text-primary border-b-2 border-primary font-label-md font-bold"
           )}
-          <div className="flex items-center gap-2 border-l border-outline-variant pl-6">
+          <div className="flex items-center gap-2 border-l border-white/10 pl-6">
             {renderIconRow()}
             <Link href={studioHref} prefetch={false}>
-              <button className="bg-primary text-on-primary px-6 py-2 rounded-full font-label-md hover:opacity-90 active:scale-95 transition-all ml-2">
+              <button className="bg-primary text-black px-6 py-2 rounded-full font-label-md font-bold hover:opacity-90 active:scale-95 transition-all ml-2">
                 {studioLabel}
               </button>
             </Link>

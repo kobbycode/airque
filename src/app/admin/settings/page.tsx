@@ -47,68 +47,75 @@ export default function SettingsPage() {
         <button
           onClick={save}
           disabled={saving}
-          className="bg-primary text-on-primary px-6 py-2.5 rounded-lg font-label-md hover:opacity-90 disabled:opacity-50"
+          className="bg-primary text-black px-6 py-2.5 rounded-xl font-label-md hover:scale-105 active:scale-95 transition-all font-bold disabled:opacity-50 cursor-pointer shadow-lg shadow-primary/20"
         >
           {saving ? 'Saving…' : 'Save Settings'}
         </button>
       </div>
 
       {message && (
-        <p className={`text-sm px-4 py-2 rounded-lg ${message.includes('Failed') ? 'bg-error-container text-error' : 'bg-green-100 text-green-700'}`}>
-          {message}
-        </p>
+        <div className={`flex items-center gap-2 border rounded-xl px-4 py-3 ${
+          message.includes('Failed') 
+            ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+            : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+        }`}>
+          <span className="material-symbols-outlined text-sm">
+            {message.includes('Failed') ? 'error' : 'check_circle'}
+          </span>
+          <p className="text-xs font-semibold">{message}</p>
+        </div>
       )}
 
-      <div className="grid grid-cols-12 gap-6">
-        <section className="col-span-12 lg:col-span-8 bg-white border border-outline-variant rounded-xl p-6 space-y-6">
-          <h3 className="font-headline-md border-b border-outline-variant/30 pb-3">Encoder & Quality</h3>
+      <div className="grid grid-cols-12 gap-6 text-white">
+        <section className="col-span-12 lg:col-span-8 modern-glass border border-white/5 rounded-2xl p-6 space-y-6">
+          <h3 className="font-headline-md border-b border-white/5 pb-3 text-white font-bold">Encoder & Quality</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <label className="flex flex-col gap-2 text-sm">
-              Default Bitrate (kbps)
+            <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
+              Default Bitrate
               <select
-                className="border border-outline-variant rounded-lg p-3"
+                className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-primary/45 transition-colors cursor-pointer"
                 value={settings.defaultBitrate}
                 onChange={e => setSettings(s => ({ ...s, defaultBitrate: e.target.value }))}
               >
-                {['320', '256', '128', '64'].map(v => <option key={v} value={v}>{v} kbps</option>)}
+                {['320', '256', '128', '64'].map(v => <option key={v} value={v} className="bg-[#0c0e1a] text-white">{v} kbps</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-2 text-sm">
+            <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
               Audio Format
               <select
-                className="border border-outline-variant rounded-lg p-3"
+                className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm outline-none focus:border-primary/45 transition-colors cursor-pointer"
                 value={settings.audioFormat}
                 onChange={e => setSettings(s => ({ ...s, audioFormat: e.target.value }))}
               >
-                <option value="aac">AAC</option>
-                <option value="mp3">MP3</option>
-                <option value="opus">Opus</option>
+                <option value="aac" className="bg-[#0c0e1a] text-white">AAC</option>
+                <option value="mp3" className="bg-[#0c0e1a] text-white">MP3</option>
+                <option value="opus" className="bg-[#0c0e1a] text-white">Opus</option>
               </select>
             </label>
-            <label className="flex flex-col gap-2 text-sm">
+            <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
               Icecast Mount
-              <input className="border border-outline-variant rounded-lg p-3 font-mono" value={settings.icecastMount} onChange={e => setSettings(s => ({ ...s, icecastMount: e.target.value }))} />
+              <input className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm font-mono outline-none focus:border-primary/45 transition-colors" value={settings.icecastMount} onChange={e => setSettings(s => ({ ...s, icecastMount: e.target.value }))} />
             </label>
-            <label className="flex flex-col gap-2 text-sm">
+            <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
               Failover URL
-              <input className="border border-outline-variant rounded-lg p-3 font-mono" value={settings.failoverUrl} onChange={e => setSettings(s => ({ ...s, failoverUrl: e.target.value }))} />
+              <input className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm font-mono outline-none focus:border-primary/45 transition-colors" value={settings.failoverUrl} onChange={e => setSettings(s => ({ ...s, failoverUrl: e.target.value }))} />
             </label>
           </div>
-          <label className="flex items-center gap-3 text-sm cursor-pointer">
+          <label className="flex items-center gap-3 text-sm text-white/80 cursor-pointer">
             <input type="checkbox" checked={settings.dynamicMetadata} onChange={e => setSettings(s => ({ ...s, dynamicMetadata: e.target.checked }))} className="w-4 h-4 accent-primary" />
             Enable dynamic ICY metadata
           </label>
         </section>
 
-        <section className="col-span-12 lg:col-span-4 bg-white border border-outline-variant rounded-xl p-6 space-y-4">
-          <h3 className="font-headline-md border-b border-outline-variant/30 pb-3">Integration Keys</h3>
-          <label className="flex flex-col gap-2 text-sm">
+        <section className="col-span-12 lg:col-span-4 modern-glass border border-white/5 rounded-2xl p-6 space-y-4">
+          <h3 className="font-headline-md border-b border-white/5 pb-3 text-white font-bold">Integration Keys</h3>
+          <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
             Stream Security Token
-            <input type="password" className="border border-outline-variant rounded-lg p-3 font-mono text-sm" value={settings.streamSecurityToken} onChange={e => setSettings(s => ({ ...s, streamSecurityToken: e.target.value }))} />
+            <input type="password" className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm font-mono outline-none focus:border-primary/45 transition-colors" value={settings.streamSecurityToken} onChange={e => setSettings(s => ({ ...s, streamSecurityToken: e.target.value }))} />
           </label>
-          <label className="flex flex-col gap-2 text-sm">
+          <label className="flex flex-col gap-2 text-xs uppercase tracking-wider text-white/40 font-bold">
             API Key
-            <input type="password" className="border border-outline-variant rounded-lg p-3 font-mono text-sm" value={settings.apiKey} onChange={e => setSettings(s => ({ ...s, apiKey: e.target.value }))} />
+            <input type="password" className="bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm font-mono outline-none focus:border-primary/45 transition-colors" value={settings.apiKey} onChange={e => setSettings(s => ({ ...s, apiKey: e.target.value }))} />
           </label>
         </section>
       </div>

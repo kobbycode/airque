@@ -43,7 +43,7 @@ export default function ListenersPage() {
   useEffect(() => {
     const online = stations.filter(s => s.status === 'ONLINE' && s.streamUrl && s.id);
     if (!online.length) {
-      setListenerData({});
+      Promise.resolve().then(() => setListenerData({}));
       return;
     }
     let active = true;
@@ -125,61 +125,63 @@ export default function ListenersPage() {
             Connections derived from live Icecast/Shoutcast counts ({liveSourceCount} stations reporting live)
           </p>
         </div>
-        <div className="bg-white border border-outline-variant px-4 py-2 rounded-lg flex items-center gap-2">
-          <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="font-code text-sm">{loading ? 'Loading…' : `${totalListeners.toLocaleString()} Active Now`}</span>
+        <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2">
+          <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+          <span className="font-code text-sm text-white/80">{loading ? 'Loading…' : `${totalListeners.toLocaleString()} Active Now`}</span>
         </div>
       </div>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-outline-variant p-6 rounded-xl">
-          <span className="text-xs uppercase text-on-surface-variant">Device Mix</span>
-          <p className="mt-2 text-sm">Mobile {mobilePct}% · Desktop {desktopPct}%</p>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 text-white">
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform">
+          <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Device Mix</span>
+          <p className="text-sm text-white/80 font-semibold mt-1">Mobile {mobilePct}% · Desktop {desktopPct}%</p>
         </div>
-        <div className="bg-white border border-outline-variant p-6 rounded-xl">
-          <span className="text-xs uppercase text-on-surface-variant">Connection Rows</span>
-          <p className="mt-2 font-display-lg text-on-surface">{filtered.length}</p>
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform">
+          <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Connection Rows</span>
+          <p className="font-display-lg text-[28px] font-black text-white leading-none mt-1">{filtered.length}</p>
         </div>
-        <div className="bg-white border border-outline-variant p-6 rounded-xl">
-          <span className="text-xs uppercase text-on-surface-variant">Online Stations</span>
-          <p className="mt-2 font-display-lg text-on-surface">{stations.filter(s => s.status === 'ONLINE').length}</p>
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform">
+          <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Online Stations</span>
+          <p className="font-display-lg text-[28px] font-black text-white leading-none mt-1">{stations.filter(s => s.status === 'ONLINE').length}</p>
         </div>
       </section>
 
-      <div className="bg-white border border-outline-variant rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-outline-variant flex gap-3">
+      <div className="modern-glass border border-white/5 rounded-2xl overflow-hidden">
+        <div className="p-4 border-b border-white/5 flex gap-3">
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search IP, station, region..."
-            className="flex-1 border border-outline-variant rounded-xl px-4 py-2 text-sm focus:border-primary outline-none"
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-primary/45 outline-none transition-colors"
           />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="p-4 text-xs uppercase text-on-surface-variant">IP</th>
-                <th className="p-4 text-xs uppercase text-on-surface-variant">Location</th>
-                <th className="p-4 text-xs uppercase text-on-surface-variant">Station</th>
-                <th className="p-4 text-xs uppercase text-on-surface-variant">Device</th>
-                <th className="p-4 text-xs uppercase text-on-surface-variant">Est. Listeners</th>
-                <th className="p-4 text-xs uppercase text-on-surface-variant">Source</th>
+              <tr className="bg-white/[0.02] border-b border-white/5">
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">IP</th>
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Location</th>
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Station</th>
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Device</th>
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Est. Listeners</th>
+                <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant">
+            <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-12 text-center text-on-surface-variant">No active listener sessions</td></tr>
+                <tr><td colSpan={6} className="p-12 text-center text-white/40">No active listener sessions</td></tr>
               ) : filtered.map((c, i) => (
-                <tr key={`${c.ip}-${i}`} className="hover:bg-surface-container-low/50">
-                  <td className="p-4 font-mono">{c.ip}</td>
-                  <td className="p-4">{c.location}</td>
-                  <td className="p-4 font-semibold">{c.stationName}</td>
-                  <td className="p-4">{c.connectionType}</td>
-                  <td className="p-4">{c.listeners.toLocaleString()}</td>
+                <tr key={`${c.ip}-${i}`} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="p-4 font-mono text-cyan-400">{c.ip}</td>
+                  <td className="p-4 text-white/80">{c.location}</td>
+                  <td className="p-4 font-semibold text-white/90">{c.stationName}</td>
+                  <td className="p-4 text-white/70">{c.connectionType}</td>
+                  <td className="p-4 text-white/80 font-mono">{c.listeners.toLocaleString()}</td>
                   <td className="p-4">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      c.source === 'live' ? 'bg-green-100 text-green-700' : 'bg-surface-container text-on-surface-variant'
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${
+                      c.source === 'live' 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                        : 'bg-white/5 text-white/40 border-white/5'
                     }`}>{c.source}</span>
                   </td>
                 </tr>

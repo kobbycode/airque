@@ -50,20 +50,22 @@ export default function EditStationModal({ station, onClose, onSuccess }: EditSt
 
   useEffect(() => {
     if (!station) return;
-    setForm({
-      name: station.name,
-      streamUrl: station.streamUrl,
-      genre: station.genre,
-      location: station.location,
-      region: station.region,
-      bitrate: station.bitrate,
-      status: station.status,
-      logoUrl: station.logoUrl,
-      ownerId: station.ownerId,
+    queueMicrotask(() => {
+      setForm({
+        name: station.name,
+        streamUrl: station.streamUrl,
+        genre: station.genre,
+        location: station.location,
+        region: station.region,
+        bitrate: station.bitrate,
+        status: station.status,
+        logoUrl: station.logoUrl,
+        ownerId: station.ownerId,
+      });
+      setLogoPreview(station.logoUrl || '');
+      setLogoFile(null);
+      setError('');
     });
-    setLogoPreview(station.logoUrl || '');
-    setLogoFile(null);
-    setError('');
   }, [station]);
 
   if (!station?.id) return null;
@@ -106,7 +108,7 @@ export default function EditStationModal({ station, onClose, onSuccess }: EditSt
         setUploading(true);
         const safeName = logoFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const storageRef = ref(storage, `station-logos/${appUser.uid}/${Date.now()}_${safeName}`);
-        const uploadTask = uploadBytesResumable(storageRef, logoFile);
+        const uploadTask = uploadBytesResumable(storageRef, logoFile, { contentType: logoFile.type });
 
         finalLogoUrl = await new Promise<string>((resolve, reject) => {
           uploadTask.on(
@@ -199,10 +201,19 @@ export default function EditStationModal({ station, onClose, onSuccess }: EditSt
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="font-label-md text-[10px] text-white/50 uppercase tracking-wider">Genre *</label>
-                <select name="genre" value={form.genre} onChange={handleChange} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none transition-all cursor-pointer">
-                  <option value="" className="bg-[#0f0f14] text-white">Select genre</option>
-                  {GENRES.map(g => <option key={g} value={g} className="bg-[#0f0f14] text-white">{g}</option>)}
-                </select>
+                <input 
+                  type="text" 
+                  name="genre" 
+                  list="genre-options-edit"
+                  value={form.genre} 
+                  onChange={handleChange} 
+                  placeholder="Select or type genre"
+                  required 
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
+                />
+                <datalist id="genre-options-edit">
+                  {GENRES.map(g => <option key={g} value={g} />)}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="font-label-md text-[10px] text-white/50 uppercase tracking-wider">Region *</label>

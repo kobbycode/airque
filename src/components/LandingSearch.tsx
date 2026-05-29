@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, onSnapshot, orderBy, query, limit } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, limit, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Podcast, Station } from '@/lib/types';
 
@@ -18,16 +18,17 @@ export default function LandingSearch() {
 
   useEffect(() => {
     const unsubStations = onSnapshot(
-      query(collection(db, 'stations'), orderBy('name'), limit(40)),
+      query(collection(db, 'stations'), where('status', '==', 'ONLINE'), orderBy('name'), limit(40)),
       snap => setStations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Station)))
     );
     const unsubPodcasts = onSnapshot(
-      query(collection(db, 'podcasts'), orderBy('createdAt', 'desc'), limit(20)),
-      snap => setPodcasts(
-        snap.docs
-          .map(d => ({ id: d.id, ...d.data() } as Podcast))
-          .filter(p => p.status !== 'DRAFT')
-      )
+      query(
+        collection(db, 'podcasts'),
+        where('status', '==', 'PUBLISHED'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      ),
+      snap => setPodcasts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Podcast)))
     );
     return () => { unsubStations(); unsubPodcasts(); };
   }, []);

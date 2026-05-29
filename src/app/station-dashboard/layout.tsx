@@ -51,18 +51,7 @@ export default function StationDashboardLayout({
   return (
     <div className="flex min-h-screen cosmic-nebula-bg text-white">
       <aside className="fixed left-0 top-0 h-full w-[280px] modern-glass-dark border-r border-white/5 flex flex-col p-4 gap-6 z-50 rounded-none shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
-        <div className="px-4 py-6">
-          <Link href="/" prefetch={false} className="hover:scale-105 transition-transform flex justify-center">
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-xl bg-white flex items-center justify-center p-1.5 shadow-lg">
-                <img src="/logo.png" alt="AirCue Logo" className="w-full h-full object-contain" />
-              </div>
-              <span className="font-display-lg text-[23px] font-black text-white tracking-tight leading-none">
-                Air<span className="text-cyan-400">Cue</span>
-              </span>
-            </div>
-          </Link>
-        </div>
+
 
         <div className="px-4">
           <div className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl shadow-inner backdrop-blur-md">

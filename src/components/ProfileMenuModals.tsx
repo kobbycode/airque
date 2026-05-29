@@ -71,10 +71,12 @@ export function NotificationPrefsModal({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
-    } catch { /* ignore */ }
+    queueMicrotask(() => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
+      } catch { /* ignore */ }
+    });
   }, [storageKey]);
 
   const toggle = (key: keyof UserPreferences) =>
@@ -119,10 +121,12 @@ export function FavoritesModal({ onClose }: { onClose: () => void }) {
   const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      const favs = JSON.parse(localStorage.getItem('aircue_favorites') || '[]');
-      setFavorites(Array.isArray(favs) ? favs : []);
-    } catch { setFavorites([]); }
+    queueMicrotask(() => {
+      try {
+        const favs = JSON.parse(localStorage.getItem('aircue_favorites') || '[]');
+        setFavorites(Array.isArray(favs) ? favs : []);
+      } catch { setFavorites([]); }
+    });
   }, []);
 
   return (

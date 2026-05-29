@@ -1,8 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, addDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import {
+  collection, addDoc, doc, serverTimestamp, setDoc, getDoc,
+} from 'firebase/firestore';
+import {
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  type User,
+} from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -10,7 +18,7 @@ import Link from 'next/link';
 const GENRES = [
   'Highlife', 'Afrobeats', 'Gospel', 'News & Talk', 'Sports',
   'Hip Hop / HipLife', 'Reggae', 'R&B', 'Jazz', 'Classical',
-  'Electronic', 'Traditional', 'Akan', 'Multi-genre'
+  'Electronic', 'Traditional', 'Akan', 'Multi-genre',
 ];
 
 const REGIONS = [
@@ -18,6 +26,9 @@ const REGIONS = [
   'Northern', 'Upper East', 'Upper West', 'Volta', 'Brong-Ahafo',
 ];
 
+// Step 1 = account details (email/password) or OAuth landing
+// Step 2 = station info
+// Step 3 = preview & launch
 type Step = 1 | 2 | 3;
 
 interface FormData {
@@ -37,8 +48,12 @@ export default function CreatorSignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // After OAuth sign-in we have the firebase user before station setup
+  const [oauthUser, setOauthUser] = useState<User | null>(null);
 
   const [form, setForm] = useState<FormData>({
     firstName: '',
@@ -56,13 +71,16 @@ export default function CreatorSignupPage() {
   const set = (field: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  // ─── Step validation ─────────────────────────────────────────────────────────
+  // ─── Step validation ────────────────────────────────────────────────────────
   const validateStep1 = () => {
-    if (!form.firstName.trim()) return 'First name is required.';
-    if (!form.lastName.trim())  return 'Last name is required.';
-    if (!form.email.trim() || !form.email.includes('@')) return 'A valid email is required.';
-    if (form.password.length < 6) return 'Password must be at least 6 characters.';
-    if (!form.agreedToTerms) return 'You must agree to the Terms of Service.';
+    if (!oauthUser) {
+      // Email / password path
+      if (!form.firstName.trim()) return 'First name is required.';
+      if (!form.lastName.trim())  return 'Last name is required.';
+      if (!form.email.trim() || !form.email.includes('@')) return 'A valid email is required.';
+      if (form.password.length < 6) return 'Password must be at least 6 characters.';
+      if (!form.agreedToTerms) return 'You must agree to the Terms of Service.';
+    }
     return null;
   };
 
@@ -86,6 +104,148 @@ export default function CreatorSignupPage() {
     setStep(s => (s + 1) as Step);
   };
 
+  // ─── Shared: save user docs + station then redirect ─────────────────────────
+  const provisionCreator = async (
+    uid: string,
+    firstName: string,
+    lastName: string,
+    email: string,
+  ) => {
+    await setDoc(doc(db, 'users', uid), {
+      email,
+      firstName,
+      lastName,
+      role: 'creator',
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
+    await setDoc(doc(db, 'creators', uid), {
+      uid,
+      firstName,
+      lastName,
+      email,
+      role: 'creator',
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
+    await addDoc(collection(db, 'stations'), {
+      ownerId: uid,
+      name: form.stationName,
+      genre: form.genre,
+      region: form.region,
+      location: form.city || form.region,
+      streamUrl: form.streamUrl || '',
+      bitrate: '128kbps',
+      status: 'ONLINE',
+      logoUrl: '',
+      createdAt: serverTimestamp(),
+    });
+
+    router.push('/station-dashboard');
+  };
+
+  // ─── OAuth helpers ──────────────────────────────────────────────────────────
+  const handleGoogleSignIn = async () => {
+    setOauthLoading('google');
+    setError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if creator already registered — if so, just redirect
+      const snap = await getDoc(doc(db, 'creators', user.uid));
+      if (snap.exists()) {
+        router.push('/station-dashboard');
+        return;
+      }
+
+      // Pre-fill name/email from Google profile
+      const nameParts = (user.displayName ?? '').split(' ');
+      setForm(prev => ({
+        ...prev,
+        firstName: nameParts[0] ?? '',
+        lastName: nameParts.slice(1).join(' ') ?? '',
+        email: user.email ?? '',
+        agreedToTerms: true, // implied by OAuth
+      }));
+      setOauthUser(user);
+      setStep(2); // skip to station setup
+    } catch (err: unknown) {
+      console.error(err);
+      const code = (err as { code?: string }).code ?? '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        // user dismissed — silently ignore
+      } else if (code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        setError('Google sign-in failed. Please try again or use email/password.');
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setOauthLoading('apple');
+    setError('');
+    try {
+      const provider = new OAuthProvider('apple.com');
+      provider.addScope('email');
+      provider.addScope('name');
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if creator already registered — if so, just redirect
+      const snap = await getDoc(doc(db, 'creators', user.uid));
+      if (snap.exists()) {
+        router.push('/station-dashboard');
+        return;
+      }
+
+      // Apple only provides name on first sign-in
+      const credential = OAuthProvider.credentialFromResult(result);
+      const idToken = credential?.idToken ?? '';
+      let firstName = '';
+      let lastName = '';
+      try {
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        if (payload.given_name) firstName = payload.given_name;
+        if (payload.family_name) lastName = payload.family_name;
+      } catch { /* ignore */ }
+      if (!firstName && user.displayName) {
+        const parts = user.displayName.split(' ');
+        firstName = parts[0] ?? '';
+        lastName = parts.slice(1).join(' ') ?? '';
+      }
+
+      setForm(prev => ({
+        ...prev,
+        firstName,
+        lastName,
+        email: user.email ?? '',
+        agreedToTerms: true,
+      }));
+      setOauthUser(user);
+      setStep(2);
+    } catch (err: unknown) {
+      console.error(err);
+      const code = (err as { code?: string }).code ?? '';
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        // silently ignore
+      } else if (code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setError('Apple sign-in is not enabled. Please use Google or email/password.');
+      } else {
+        setError('Apple sign-in failed. Please try again or use email/password.');
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
   // ─── Final submission ────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,41 +256,25 @@ export default function CreatorSignupPage() {
     setError('');
 
     try {
-      const credential = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      const { uid } = credential.user;
-
-      await setDoc(doc(db, 'users', uid), {
-        email: form.email,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        role: 'creator',
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-
-      await setDoc(doc(db, 'creators', uid), {
-        uid,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        role: 'creator',
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-
-      // 2. Auto-provision their station
-      await addDoc(collection(db, 'stations'), {
-        ownerId: uid,
-        name: form.stationName,
-        genre: form.genre,
-        region: form.region,
-        location: form.city || form.region,
-        streamUrl: form.streamUrl || '',
-        bitrate: '128kbps',
-        status: 'ONLINE',
-        logoUrl: '',
-        createdAt: serverTimestamp(),
-      });
-
-      router.push('/station-dashboard');
+      if (oauthUser) {
+        // OAuth path — user already signed in, just provision station
+        const nameParts = (oauthUser.displayName ?? '').split(' ');
+        await provisionCreator(
+          oauthUser.uid,
+          form.firstName || nameParts[0] || '',
+          form.lastName  || nameParts.slice(1).join(' ') || '',
+          oauthUser.email ?? form.email,
+        );
+      } else {
+        // Email/password path
+        const credential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+        await provisionCreator(
+          credential.user.uid,
+          form.firstName,
+          form.lastName,
+          form.email,
+        );
+      }
     } catch (err) {
       console.error(err);
       setError('Something went wrong. Please try again.');
@@ -183,7 +327,7 @@ export default function CreatorSignupPage() {
                 <span className="w-2 h-2 rounded-full bg-on-primary animate-pulse" />
                 <span className="font-label-md text-on-primary tracking-wider">LIVE NOW</span>
               </div>
-              <p className="font-label-md text-primary tracking-widest uppercase">AirCue Global</p>
+              <p className="font-label-md text-primary tracking-widest uppercase">Ghana Radio Global</p>
             </div>
             <h1 className="font-display-lg text-display-lg text-on-surface leading-none">
               JOIN THE <br/>
@@ -212,7 +356,7 @@ export default function CreatorSignupPage() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center justify-center gap-2 mb-8 hover:opacity-85 transition-opacity">
-              <img src="/logo.png" alt="AirCue" className="h-14 w-auto" />
+              <img src="/logo.png" alt="Ghana Radio" className="h-20 w-auto" />
             </Link>
 
             {/* Step indicator */}
@@ -248,25 +392,36 @@ export default function CreatorSignupPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     type="button"
-                    onClick={() => setError('OAuth sign-in requires Google provider to be enabled in Firebase Console. Please use email/password for now.')}
-                    className="flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant p-3 rounded-xl hover:bg-surface-container-low transition-all active:scale-95 group"
+                    onClick={handleGoogleSignIn}
+                    disabled={!!oauthLoading}
+                    className="flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant p-3 rounded-xl hover:bg-surface-container-low transition-all active:scale-95 group disabled:opacity-60"
                   >
-                    <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                    </svg>
+                    {oauthLoading === 'google' ? (
+                      <span className="w-4 h-4 border-2 border-outline-variant border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                      </svg>
+                    )}
                     <span className="font-label-md text-on-surface">Google</span>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => setError('OAuth sign-in requires Apple provider to be enabled in Firebase Console. Please use email/password for now.')}
-                    className="flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant p-3 rounded-xl hover:bg-surface-container-low transition-all active:scale-95 group"
+                    onClick={handleAppleSignIn}
+                    disabled={!!oauthLoading}
+                    className="flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant p-3 rounded-xl hover:bg-surface-container-low transition-all active:scale-95 group disabled:opacity-60"
                   >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.3C4.24 17.15 4.3 11.23 7.12 8.5c1.4-1.33 3-1.3 4-.67.75.46 1.54.46 2.27 0 1.2-.67 2.76-.84 4.02.5-.32.22-2.58 2.65-2.5 5.8.1 3.5 2.33 4.77 3.14 5.3-.2.53-.4 1.05-.6 1.56l-.34.3zm-3.55-16.1c.3-.04.6-.06.9-.06.13 1.34-.4 2.62-1.4 3.5-.96.85-2.3 1.03-2.6.14-.1-.32-.2-.64-.2-.96.12-1.28.94-2.3 2.1-2.6z" />
-                    </svg>
+                    {oauthLoading === 'apple' ? (
+                      <span className="w-4 h-4 border-2 border-outline-variant border-t-on-surface rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.3C4.24 17.15 4.3 11.23 7.12 8.5c1.4-1.33 3-1.3 4-.67.75.46 1.54.46 2.27 0 1.2-.67 2.76-.84 4.02.5-.32.22-2.58 2.65-2.5 5.8.1 3.5 2.33 4.77 3.14 5.3-.2.53-.4 1.05-.6 1.56l-.34.3zm-3.55-16.1c.3-.04.6-.06.9-.06.13 1.34-.4 2.62-1.4 3.5-.96.85-2.3 1.03-2.6.14-.1-.32-.2-.64-.2-.96.12-1.28.94-2.3 2.1-2.6z" />
+                      </svg>
+                    )}
                     <span className="font-label-md text-on-surface">Apple</span>
                   </button>
                 </div>
@@ -281,13 +436,13 @@ export default function CreatorSignupPage() {
                     <label className="font-label-md text-on-surface-variant ml-1 text-xs">First Name *</label>
                     <input value={form.firstName} onChange={e => set('firstName', e.target.value)}
                       className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface text-sm"
-                      placeholder="John" />
+                      placeholder="Kofi" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="font-label-md text-on-surface-variant ml-1 text-xs">Last Name *</label>
                     <input value={form.lastName} onChange={e => set('lastName', e.target.value)}
                       className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface text-sm"
-                      placeholder="Doe" />
+                      placeholder="Mensah" />
                   </div>
                 </div>
 
@@ -295,7 +450,7 @@ export default function CreatorSignupPage() {
                   <label className="font-label-md text-on-surface-variant ml-1 text-xs">Email Address *</label>
                   <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
                     className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface text-sm"
-                    placeholder="john@example.com" />
+                    placeholder="kofi@example.com" />
                 </div>
 
                 <div className="space-y-1.5">
@@ -343,7 +498,7 @@ export default function CreatorSignupPage() {
                 </button>
 
                 <p className="text-center font-body-md text-on-surface-variant text-sm">
-                  Already have an account? <Link href="/admin" className="text-primary font-bold hover:underline">Log in</Link>
+                  Already have an account? <Link href="/login" className="text-primary font-bold hover:underline">Log in</Link>
                 </p>
               </div>
             )}
@@ -355,6 +510,20 @@ export default function CreatorSignupPage() {
                   <h2 className="font-headline-lg text-on-surface">Set up your station</h2>
                   <p className="font-body-md text-on-surface-variant mt-1">Tell us about your broadcast. You can always change this later.</p>
                 </div>
+
+                {/* Show the signed-in account info if OAuth */}
+                {oauthUser && (
+                  <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
+                    {oauthUser.photoURL && (
+                      <img src={oauthUser.photoURL} alt="profile" className="w-8 h-8 rounded-full border border-primary/30" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-on-surface">{oauthUser.displayName || form.email}</p>
+                      <p className="text-[11px] text-primary">Signed in · now set up your station</p>
+                    </div>
+                    <span className="material-symbols-outlined text-primary ml-auto text-sm">verified</span>
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="font-label-md text-on-surface-variant ml-1 text-xs">Station Name *</label>
@@ -400,13 +569,13 @@ export default function CreatorSignupPage() {
                 {error && <ErrorAlert message={error} />}
 
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setStep(1)}
+                  <button type="button" onClick={() => { setOauthUser(null); setStep(1); }}
                     className="flex-1 py-3 rounded-xl border border-outline-variant font-label-md text-on-surface hover:bg-surface-container transition-all">
                     Back
                   </button>
                   <button type="submit"
                     className="flex-1 bg-primary text-on-primary py-3 rounded-xl font-headline-md hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
-                    Preview & Launch
+                    Preview &amp; Launch
                     <span className="material-symbols-outlined text-sm">arrow_forward</span>
                   </button>
                 </div>
@@ -439,7 +608,7 @@ export default function CreatorSignupPage() {
                   <div className="divide-y divide-outline-variant/40">
                     {[
                       ['Host', `${form.firstName} ${form.lastName}`],
-                      ['Email', form.email],
+                      ['Email', oauthUser?.email ?? form.email],
                       ['Region', form.region],
                       ['Stream URL', form.streamUrl || 'Not set — add later in Settings'],
                     ].map(([k, v]) => (

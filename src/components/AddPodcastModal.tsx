@@ -78,10 +78,18 @@ export default function AddPodcastModal({ isOpen, onClose }: AddPodcastModalProp
           <input className="w-full border border-outline-variant rounded-xl px-4 py-3 text-sm font-mono" placeholder="Audio URL (mp3/m3u8) *" value={form.streamUrl} onChange={e => setForm(p => ({ ...p, streamUrl: e.target.value }))} required />
           <div className="grid grid-cols-2 gap-3">
             <input type="number" min={0} className="border border-outline-variant rounded-xl px-4 py-3 text-sm" placeholder="Duration (sec)" value={form.duration || ''} onChange={e => setForm(p => ({ ...p, duration: Number(e.target.value) }))} />
-            <select className="border border-outline-variant rounded-xl px-4 py-3 text-sm" value={form.genre} onChange={e => setForm(p => ({ ...p, genre: e.target.value }))}>
-              <option value="">Genre</option>
-              {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
+            <>
+              <input 
+                className="w-full border border-outline-variant rounded-xl px-4 py-3 text-sm" 
+                placeholder="Genre" 
+                value={form.genre} 
+                list="podcast-genres"
+                onChange={e => setForm(p => ({ ...p, genre: e.target.value }))} 
+              />
+              <datalist id="podcast-genres">
+                {GENRES.map(g => <option key={g} value={g} />)}
+              </datalist>
+            </>
           </div>
           <input className="w-full border border-outline-variant rounded-xl px-4 py-3 text-sm" placeholder="Logo URL" value={form.logoUrl} onChange={e => setForm(p => ({ ...p, logoUrl: e.target.value }))} />
           <textarea className="w-full border border-outline-variant rounded-xl px-4 py-3 text-sm h-24 resize-none" placeholder="Description" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />

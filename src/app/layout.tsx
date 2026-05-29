@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Hanken_Grotesk, Exo_2 } from "next/font/google";
 import "./globals.css";
 import CustomCursor from "@/components/CustomCursor";
+import { CustomAlertProvider } from "@/components/CustomAlert";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -67,8 +68,10 @@ export default function RootLayout({
       <body
         className={`${geist.variable} ${hankenGrotesk.variable} ${exo2.variable} antialiased`}
       >
-        <CustomCursor />
-        {children}
+        <CustomAlertProvider>
+          <CustomCursor />
+          {children}
+        </CustomAlertProvider>
       </body>
     </html>
   );

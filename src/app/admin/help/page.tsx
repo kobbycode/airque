@@ -71,67 +71,72 @@ export default function HelpPage() {
           <p className="font-body-sm text-on-surface-variant">Submit tickets stored in Firestore supportTickets</p>
         </div>
         <div className={`flex items-center gap-2 text-xs font-label-md px-3 py-1.5 rounded-full border ${
-          onlineStations > 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'
+          onlineStations > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
         }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${onlineStations > 0 ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${onlineStations > 0 ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-amber-500'}`} />
           {onlineStations > 0 ? `${onlineStations} Stations Live` : 'No Live Stations'}
         </div>
       </div>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link href="/admin/settings" className="bg-white border border-outline-variant p-6 rounded-xl hover:border-primary/50 transition-colors">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 text-white">
+        <Link href="/admin/settings" className="modern-glass border border-white/5 p-6 rounded-2xl hover:border-primary/50 transition-colors flex flex-col gap-1.5">
           <span className="material-symbols-outlined text-primary">settings</span>
-          <h3 className="font-bold mt-2">Platform Settings</h3>
-          <p className="text-sm text-on-surface-variant">Encoder, failover, and API keys</p>
+          <h3 className="font-bold text-white mt-1">Platform Settings</h3>
+          <p className="text-xs text-white/40">Encoder, failover, and API keys</p>
         </Link>
-        <Link href="/admin/analytics" className="bg-white border border-outline-variant p-6 rounded-xl hover:border-primary/50 transition-colors">
+        <Link href="/admin/analytics" className="modern-glass border border-white/5 p-6 rounded-2xl hover:border-primary/50 transition-colors flex flex-col gap-1.5">
           <span className="material-symbols-outlined text-secondary">bar_chart</span>
-          <h3 className="font-bold mt-2">Analytics Hub</h3>
-          <p className="text-sm text-on-surface-variant">Live listener and request metrics</p>
+          <h3 className="font-bold text-white mt-1">Analytics Hub</h3>
+          <p className="text-xs text-white/40">Live listener and request metrics</p>
         </Link>
-        <a href="https://firebase.google.com/docs" target="_blank" rel="noopener noreferrer" className="bg-white border border-outline-variant p-6 rounded-xl hover:border-primary/50 transition-colors">
+        <a href="https://firebase.google.com/docs" target="_blank" rel="noopener noreferrer" className="modern-glass border border-white/5 p-6 rounded-2xl hover:border-primary/50 transition-colors flex flex-col gap-1.5">
           <span className="material-symbols-outlined text-tertiary">integration_instructions</span>
-          <h3 className="font-bold mt-2">Firebase Docs</h3>
-          <p className="text-sm text-on-surface-variant">Backend reference for admins</p>
+          <h3 className="font-bold text-white mt-1">Firebase Docs</h3>
+          <p className="text-xs text-white/40">Backend reference for admins</p>
         </a>
       </section>
 
       <div className="grid grid-cols-12 gap-6">
-        <section className="col-span-12 lg:col-span-8 bg-white border border-outline-variant rounded-xl p-6">
-          <h3 className="font-headline-md border-b border-outline-variant/30 pb-3 mb-4">Open Support Ticket</h3>
+        <section className="col-span-12 lg:col-span-8 modern-glass border border-white/5 rounded-2xl p-6">
+          <h3 className="font-headline-md border-b border-white/5 pb-3 mb-4 text-white font-bold">Open Support Ticket</h3>
           <form className="space-y-4" onSubmit={submit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select className="border border-outline-variant rounded-lg p-3 text-sm" value={priority} onChange={e => setPriority(e.target.value as SupportTicket['priority'])}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+              <select className="bg-white/5 border border-white/10 text-white rounded-xl p-3 text-sm outline-none focus:border-primary/45 transition-colors cursor-pointer" value={priority} onChange={e => setPriority(e.target.value as SupportTicket['priority'])}>
+                <option value="low" className="bg-[#0c0e1a]">Low</option>
+                <option value="medium" className="bg-[#0c0e1a]">Medium</option>
+                <option value="high" className="bg-[#0c0e1a]">High</option>
               </select>
-              <select className="border border-outline-variant rounded-lg p-3 text-sm" value={category} onChange={e => setCategory(e.target.value)}>
-                <option value="stream">Encoder / Stream</option>
-                <option value="metadata">Metadata</option>
-                <option value="billing">Billing</option>
-                <option value="other">Other</option>
+              <select className="bg-white/5 border border-white/10 text-white rounded-xl p-3 text-sm outline-none focus:border-primary/45 transition-colors cursor-pointer" value={category} onChange={e => setCategory(e.target.value)}>
+                <option value="stream" className="bg-[#0c0e1a]">Encoder / Stream</option>
+                <option value="metadata" className="bg-[#0c0e1a]">Metadata</option>
+                <option value="billing" className="bg-[#0c0e1a]">Billing</option>
+                <option value="other" className="bg-[#0c0e1a]">Other</option>
               </select>
             </div>
-            <input className="w-full border border-outline-variant rounded-lg p-3 text-sm" placeholder="Subject" value={subject} onChange={e => setSubject(e.target.value)} required />
-            <textarea className="w-full border border-outline-variant rounded-lg p-3 text-sm h-32 resize-none" placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} required />
-            {message && <p className="text-sm text-primary">{message}</p>}
-            <button type="submit" disabled={submitting} className="bg-primary text-on-primary px-6 py-3 rounded-lg font-label-md disabled:opacity-50">
+            <input className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 text-sm outline-none focus:border-primary/45 transition-colors" placeholder="Subject" value={subject} onChange={e => setSubject(e.target.value)} required />
+            <textarea className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 text-sm h-32 resize-none outline-none focus:border-primary/45 transition-colors" placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} required />
+            {message && (
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl px-4 py-3">
+                <span className="material-symbols-outlined text-sm">check_circle</span>
+                <p className="text-xs font-semibold">{message}</p>
+              </div>
+            )}
+            <button type="submit" disabled={submitting} className="bg-primary text-black px-6 py-3 rounded-xl font-label-md font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 cursor-pointer">
               {submitting ? 'Submitting…' : 'Submit Ticket'}
             </button>
           </form>
         </section>
 
-        <section className="col-span-12 lg:col-span-4 bg-white border border-outline-variant rounded-xl p-6">
-          <h3 className="font-headline-md mb-4">Recent Tickets</h3>
+        <section className="col-span-12 lg:col-span-4 modern-glass border border-white/5 rounded-2xl p-6">
+          <h3 className="font-headline-md mb-4 text-white font-bold">Recent Tickets</h3>
           {tickets.length === 0 ? (
-            <p className="text-sm text-on-surface-variant">No tickets yet.</p>
+            <p className="text-sm text-white/40">No tickets yet.</p>
           ) : (
             <ul className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
               {tickets.map(t => (
-                <li key={t.id} className="border border-outline-variant rounded-lg p-3 text-sm">
-                  <p className="font-semibold text-on-surface">{t.subject}</p>
-                  <p className="text-xs text-on-surface-variant mt-1">{t.priority} · {t.status}</p>
+                <li key={t.id} className="border border-white/5 rounded-xl p-3 text-sm bg-white/[0.02] text-white">
+                  <p className="font-semibold text-white/90">{t.subject}</p>
+                  <p className="text-xs text-white/40 mt-1 font-medium">{t.priority} · {t.status}</p>
                 </li>
               ))}
             </ul>

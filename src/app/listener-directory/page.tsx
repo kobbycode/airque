@@ -1,38 +1,49 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, orderBy, limit, doc, updateDoc, increment, setDoc } from 'firebase/firestore';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { collection, onSnapshot, query, where, addDoc, serverTimestamp, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { normalizeTimestamp, type ChatMessage, type Podcast, type ScheduleBlock, type Station, type AppNotification } from '@/lib/types';
 import Link from 'next/link';
 import { useAuthState } from '@/lib/auth';
+import { formatListenerLabel, getDisplayListenerCount } from '@/lib/listener-presence';
+import { useListenerPresence } from '@/hooks/useListenerPresence';
+import { useStationListenerCounts } from '@/hooks/useStationListenerCounts';
+import StationListenerBadge from '@/components/StationListenerBadge';
 import { signOut } from 'firebase/auth';
+import type Hls from 'hls.js';
+import { useAlert } from '@/components/CustomAlert';
 
-type HlsType = {
-  loadSource: (source: string) => void;
-  attachMedia: (media: HTMLMediaElement) => void;
-  destroy: () => void;
-};
+type TimestampInput =
+  | Date
+  | number
+  | string
+  | { seconds: number }
+  | { toDate: () => Date }
+  | null
+  | undefined;
 
 // Helper to format time relative to Firestore Timestamp / Date / milliseconds
-function getRelativeTime(createdAt: any): string {
+function getRelativeTime(createdAt: TimestampInput): string {
   if (!createdAt) return 'just now';
   let seconds = 0;
-  if (typeof createdAt.seconds === 'number') {
+  if (typeof createdAt === 'object' && 'seconds' in createdAt && typeof createdAt.seconds === 'number') {
     seconds = createdAt.seconds;
-  } else if (createdAt.toDate) {
+  } else if (typeof createdAt === 'object' && 'toDate' in createdAt && typeof createdAt.toDate === 'function') {
     seconds = Math.floor(createdAt.toDate().getTime() / 1000);
   } else if (createdAt instanceof Date) {
     seconds = Math.floor(createdAt.getTime() / 1000);
   } else if (typeof createdAt === 'number') {
     seconds = Math.floor(createdAt / 1000);
-  } else {
+  } else if (typeof createdAt === 'string') {
     const parsed = new Date(createdAt);
     if (!isNaN(parsed.getTime())) {
       seconds = Math.floor(parsed.getTime() / 1000);
     } else {
       return 'just now';
     }
+  } else {
+    return 'just now';
   }
 
   const diff = Math.floor(Date.now() / 1000) - seconds;
@@ -58,6 +69,8 @@ const GHANA_REGIONS = [
 
 export default function Page() {
   const { appUser } = useAuthState();
+  const { showConfirm } = useAlert();
+  const stationListenerCounts = useStationListenerCounts();
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStation, setActiveStation] = useState<Station | null>(null);
@@ -68,15 +81,6 @@ export default function Page() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const searchModalRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [timeCounter, setTimeCounter] = useState(0);
-  const [liveListeners, setLiveListeners] = useState<Record<string, { count: number; source: 'live' | 'simulated' }>>({});
-
-  // Refs for real-time listener counting
-  const qualifyTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isCountedRef = useRef<boolean>(false);
-  const countedStationIdRef = useRef<string | null>(null);
-  const timerStationIdRef = useRef<string | null>(null);
-
   // Favorites & Recently Played
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recentPlayed, setRecentPlayed] = useState<string[]>([]);
@@ -95,6 +99,25 @@ export default function Page() {
 
   // Premium Features Expanded States
   const [activeSegment, setActiveSegment] = useState<'live' | 'podcast'>('live');
+  const isLiveListening =
+    activeSegment === 'live' &&
+    isPlaying &&
+    Boolean(activeStation?.id && activeStation?.streamUrl);
+
+  const { isRegistered: isListenerRegistered, registeredStationId } = useListenerPresence({
+    stationId: isLiveListening ? (activeStation?.id ?? null) : null,
+    stationName: isLiveListening ? (activeStation?.name ?? null) : null,
+    isListening: isLiveListening,
+  });
+
+  const listenerCountOpts = {
+    isRegistered: isListenerRegistered,
+    registeredStationId,
+  };
+
+  const displayCount = (stationId?: string) =>
+    getDisplayListenerCount(stationListenerCounts, stationId, listenerCountOpts);
+
   const [activeRegion, setActiveRegion] = useState<string>('All');
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [podcastsLoading, setPodcastsLoading] = useState(true);
@@ -130,7 +153,7 @@ export default function Page() {
   const [currentTimeStr, setCurrentTimeStr] = useState('08:00 AM');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hlsRef = useRef<any | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Web Audio API nodes
@@ -160,24 +183,20 @@ export default function Page() {
 
   // Load client-only localStorage states to prevent Next.js SSR hydration mismatch
   useEffect(() => {
-    try {
-      const favs = JSON.parse(localStorage.getItem('aircue_favorites') || '[]');
-      if (Array.isArray(favs)) setFavorites(favs);
-    } catch { /* ignore */ }
+    queueMicrotask(() => {
+      try {
+        const favs = JSON.parse(localStorage.getItem('aircue_favorites') || '[]');
+        if (Array.isArray(favs)) setFavorites(favs);
+      } catch { /* ignore */ }
 
-    try {
-      const recent = JSON.parse(localStorage.getItem('aircue_recent') || '[]');
-      if (Array.isArray(recent)) setRecentPlayed(recent);
-    } catch { /* ignore */ }
+      try {
+        const recent = JSON.parse(localStorage.getItem('aircue_recent') || '[]');
+        if (Array.isArray(recent)) setRecentPlayed(recent);
+      } catch { /* ignore */ }
 
-    const savedNickname = localStorage.getItem('aircue_nickname');
-    setNickname(savedNickname || `Listener_${Math.floor(1000 + Math.random() * 9000)}`);
-  }, []);
-
-  // Heartbeat timer
-  useEffect(() => {
-    const timer = setInterval(() => setTimeCounter(prev => prev + 1), 5000);
-    return () => clearInterval(timer);
+      const savedNickname = localStorage.getItem('aircue_nickname');
+      setNickname(savedNickname || `Listener_${Math.floor(1000 + Math.random() * 9000)}`);
+    });
   }, []);
 
   // Sleep timer countdown effect
@@ -256,143 +275,6 @@ export default function Page() {
       console.error('Failed to mark notification as read:', err);
     }
   };
-
-  // Helper to safely decrement listener count
-  const decrementListener = useCallback((stationId: string) => {
-    try {
-      const docRef = doc(db, 'stationListeners', stationId);
-      setDoc(docRef, { count: increment(-1) }, { merge: true }).catch(err => {
-        console.error('Error decrementing listener:', err);
-      });
-    } catch (err) {
-      console.error('Error in decrementListener:', err);
-    }
-  }, []);
-
-  // Helper to safely increment listener count
-  const incrementListener = useCallback((stationId: string) => {
-    try {
-      const docRef = doc(db, 'stationListeners', stationId);
-      setDoc(docRef, { count: increment(1) }, { merge: true }).catch(err => {
-        console.error('Error incrementing listener:', err);
-      });
-    } catch (err) {
-      console.error('Error in incrementListener:', err);
-    }
-  }, []);
-
-  // 1. Subscribe to real-time station listener counts from Firestore
-  useEffect(() => {
-    const q = collection(db, 'stationListeners');
-    const unsub = onSnapshot(q, (snap) => {
-      const counts: Record<string, { count: number; source: 'live' }> = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        counts[d.id] = {
-          count: Math.max(0, data.count || 0),
-          source: 'live'
-        };
-      });
-      setLiveListeners(counts);
-    }, (err) => {
-      console.error('Error fetching station listener counts:', err);
-    });
-    return () => unsub();
-  }, []);
-
-  // 2. Handle decrementing listener count on page close / unload
-  useEffect(() => {
-    const handleUnload = () => {
-      if (isCountedRef.current && countedStationIdRef.current) {
-        const stationId = countedStationIdRef.current;
-        // Reset states immediately to prevent double decrement if unmount runs as well
-        isCountedRef.current = false;
-        countedStationIdRef.current = null;
-
-        // Call Firestore REST API with keepalive to ensure execution during unload
-        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-        const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-        if (projectId && apiKey) {
-          const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit?key=${apiKey}`;
-          fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              writes: [
-                {
-                  transform: {
-                    document: `projects/${projectId}/databases/(default)/documents/stationListeners/${stationId}`,
-                    fieldTransforms: [
-                      {
-                        fieldPath: 'count',
-                        increment: {
-                          integerValue: -1
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            }),
-            keepalive: true
-          });
-        }
-      }
-    };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, []);
-
-  // 3. Track playback to qualify, increment, and decrement listeners
-  useEffect(() => {
-    const currentStationId = activeStation?.id;
-    const isLivePlaying = isPlaying && activeSegment === 'live' && currentStationId;
-
-    // A. Decrement if we were counted elsewhere and are no longer playing that station
-    if (isCountedRef.current && countedStationIdRef.current) {
-      if (!isLivePlaying || countedStationIdRef.current !== currentStationId) {
-        decrementListener(countedStationIdRef.current);
-        isCountedRef.current = false;
-        countedStationIdRef.current = null;
-      }
-    }
-
-    // B. Clear pending timer if we stopped playing or changed station
-    if (qualifyTimerRef.current) {
-      if (!isLivePlaying || timerStationIdRef.current !== currentStationId) {
-        clearTimeout(qualifyTimerRef.current);
-        qualifyTimerRef.current = null;
-        timerStationIdRef.current = null;
-      }
-    }
-
-    // C. Start qualification timer if playing live and not yet counted
-    if (isLivePlaying && !isCountedRef.current) {
-      timerStationIdRef.current = currentStationId;
-      qualifyTimerRef.current = setTimeout(() => {
-        incrementListener(currentStationId);
-        isCountedRef.current = true;
-        countedStationIdRef.current = currentStationId;
-        qualifyTimerRef.current = null;
-        timerStationIdRef.current = null;
-      }, 10000); // 60 seconds
-    }
-
-    return () => {
-      // Clean up if component unmounts
-      if (isCountedRef.current && countedStationIdRef.current) {
-        decrementListener(countedStationIdRef.current);
-        isCountedRef.current = false;
-        countedStationIdRef.current = null;
-      }
-      if (qualifyTimerRef.current) {
-        clearTimeout(qualifyTimerRef.current);
-        qualifyTimerRef.current = null;
-      }
-    };
-  }, [isPlaying, activeStation?.id, activeSegment, decrementListener, incrementListener]);
 
   // Firestore subscription for stations
   useEffect(() => {
@@ -486,8 +368,10 @@ export default function Page() {
     const playId = params.get('play');
     const segment = params.get('segment');
     const qParam = params.get('q');
-    if (segment === 'podcast') setActiveSegment('podcast');
-    if (qParam) setSearchQuery(qParam);
+    queueMicrotask(() => {
+      if (segment === 'podcast') setActiveSegment('podcast');
+      if (qParam) setSearchQuery(qParam);
+    });
     if (playId) {
       const station = stations.find(s => s.id === playId);
       if (station) {
@@ -686,7 +570,7 @@ export default function Page() {
     }
     reconnectAttemptsRef.current = 0;
 
-    let hlsInstance: any = null;
+    let hlsInstance: Hls | null = null;
     let destroyed = false;
 
     const autoPlay = shouldAutoPlayRef.current;
@@ -999,26 +883,24 @@ export default function Page() {
     return matchesQuery && matchesRegion;
   });
 
-  const getRegionCount = (regionName: string) => {
-    if (regionName === 'All') return stations.length;
-    return stations.filter(s => s.region === regionName).length;
-  };
-
   const favoriteStations = allStations.filter(s => s.id && favorites.includes(s.id));
 
   const recentStations = recentPlayed
     .map(id => allStations.find(s => s.id === id))
     .filter(Boolean) as Station[];
 
-  // De-duplicate schedules by title and time to show unique show slots in the guide
-  const uniqueSchedules = Array.from(
-    new Map(schedules.map(item => [`${item.title}-${item.time}`, item])).values()
-  );
+  // Filter schedules for the currently viewed station in the drawer
+  const drawerOwnerId = drawerStation?.ownerId;
+  const stationSchedules = useMemo(() => {
+    if (!drawerOwnerId) return [];
+    return schedules.filter(s => s.ownerId === drawerOwnerId);
+  }, [schedules, drawerOwnerId]);
 
-  const formatListeners = (count: number) => {
-    if (!count) return '0';
-    return count >= 1000 ? (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : count.toLocaleString();
-  };
+  const uniqueSchedules = useMemo(() => {
+    return Array.from(
+      new Map(stationSchedules.map(item => [`${item.title}-${item.time}`, item])).values()
+    );
+  }, [stationSchedules]);
 
   const formatTime = (secs: number) => {
     if (isNaN(secs)) return '0:00';
@@ -1086,8 +968,7 @@ export default function Page() {
   const StationCard = ({ station, compact = false }: { station: Station; compact?: boolean }) => {
     const isActive = activeStation?.id === station.id && activeSegment === 'live';
     const isFav = station.id ? favorites.includes(station.id) : false;
-    const sid = station.id as string;
-    const countVal = sid && liveListeners[sid]?.count ? liveListeners[sid].count : 0;
+    const listenerCount = displayCount(station.id);
 
     if (compact) {
       return (
@@ -1106,11 +987,17 @@ export default function Page() {
               </div>
             )}
           </div>
-          <div className="flex flex-col justify-center">
-            <span className="text-[12px] font-bold text-white tracking-wide group-hover:text-cyan-400 transition-colors">
+          <div className="flex flex-col justify-center min-w-0">
+            <span className="text-[12px] font-bold text-white tracking-wide group-hover:text-cyan-400 transition-colors truncate">
               {station.name}
             </span>
-            <span className="text-[10px] text-white/40">{station.location || station.region}</span>
+            <span className="text-[10px] text-white/40 truncate">{station.location || station.region}</span>
+            <StationListenerBadge
+              count={listenerCount}
+              variant="compact"
+              isActive={isActive && isPlaying}
+              className="mt-0.5 text-white/45"
+            />
           </div>
         </div>
       );
@@ -1143,22 +1030,22 @@ export default function Page() {
                   {station.name}
                 </span>
                 <span className="text-[12px] text-white/50 truncate flex items-center gap-1.5 mt-0.5 font-medium">
-                  <span className="material-symbols-outlined text-[13px] text-white/30">pin_drop</span>
+                  <span className="material-symbols-outlined text-[13px] text-white/30">radio</span>
                   {station.location || station.region}
                 </span>
               </div>
             </div>
 
-            {/* Live Listener counts and indicator badge */}
             <div className="flex flex-col items-end gap-1.5 z-20">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest uppercase bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 LIVE
               </span>
-              <span className="px-2 py-0.5 rounded-lg text-[10px] bg-white/5 border border-white/5 text-white/40 flex items-center gap-1 font-bold">
-                <span className="material-symbols-outlined text-[11px] text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                {formatListeners(countVal)}
-              </span>
+              <StationListenerBadge
+                count={listenerCount}
+                variant="card"
+                isActive={isActive && isPlaying}
+              />
             </div>
           </div>
 
@@ -1252,12 +1139,7 @@ export default function Page() {
               {/* Header inside drawer */}
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2.5 hover:opacity-85 transition-opacity" onClick={() => setShowMobileSidebar(false)}>
-                  <div className="w-8.5 h-8.5 rounded-lg bg-white border border-white/10 flex items-center justify-center p-1 shadow-md">
-                    <img src="/logo.png" alt="AirCue Logo" className="w-full h-full object-contain" />
-                  </div>
-                  <span className="font-display-lg text-[16px] font-black text-white tracking-tight">
-                    Air<span className="text-cyan-400">Cue</span>
-                  </span>
+                  <img src="/logo.png" alt="AirCue Logo" className="h-16 w-auto" />
                 </Link>
                 <button
                   onClick={() => setShowMobileSidebar(false)}
@@ -1359,7 +1241,21 @@ export default function Page() {
                 </div>
                 {appUser ? (
                   <button
-                    onClick={() => { signOut(auth).catch(err => console.error(err)); setShowMobileSidebar(false); }}
+                    onClick={() => {
+                      showConfirm({
+                        title: 'Sign Out',
+                        message: 'Are you sure you want to sign out of your AirCue account?',
+                        type: 'warning',
+                        confirmText: 'Sign Out',
+                        cancelText: 'Cancel',
+                        isDangerous: true,
+                        onConfirm: () => {
+                          signOut(auth)
+                            .then(() => setShowMobileSidebar(false))
+                            .catch(err => console.error(err));
+                        }
+                      });
+                    }}
                     className="h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-semibold text-[10px] hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer"
                   >
                     Sign Out
@@ -1504,7 +1400,7 @@ export default function Page() {
                 <div>
                   <h3 className="text-[17px] font-black text-white leading-tight">{drawerStation.name}</h3>
                   <p className="text-xs text-white/50 flex items-center gap-1.5 mt-0.5 font-medium">
-                    <span className="material-symbols-outlined text-[13px] text-white/30">pin_drop</span>
+                    <span className="material-symbols-outlined text-[13px] text-white/30">radio</span>
                     {drawerStation.location || drawerStation.region}
                   </p>
                 </div>
@@ -1563,7 +1459,9 @@ export default function Page() {
                       </div>
                       <div className="bg-[#07080f] p-3 rounded-xl border border-white/[0.03] flex flex-col gap-0.5">
                         <span className="text-[9px] text-white/30 uppercase">TELEMETRY RELAY</span>
-                        <span className="text-cyan-400 font-extrabold truncate">HLS Broadcaster</span>
+                        <span className="text-cyan-400 font-extrabold truncate">
+                          {drawerStation.streamUrl.toLowerCase().includes('m3u8') ? 'HLS Direct' : 'Icecast Relay'}
+                        </span>
                       </div>
                       <div className="bg-[#07080f] p-3 rounded-xl border border-white/[0.03] flex flex-col gap-0.5">
                         <span className="text-[9px] text-white/30 uppercase">REGION</span>
@@ -1595,7 +1493,7 @@ export default function Page() {
                             </span>
                             <h5 className="font-bold text-[13.5px] text-white mt-0.5">{show.title}</h5>
                             <p className="text-xs text-white/50 mt-1 leading-relaxed">
-                              Hosted by <span className="font-semibold text-white/70">{show.host}</span>. Program broadcasting in {show.mode.toLowerCase()} mode.
+                              Hosted by <span className="font-semibold text-white/70">{show.host}</span>. Streaming from <span className="text-white/60">{show.source}</span> in {show.mode.toLowerCase()} mode.
                             </p>
                           </div>
                         );
@@ -1690,7 +1588,7 @@ export default function Page() {
                     <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl p-6 text-center space-y-2">
                       <span className="material-symbols-outlined text-3xl">check_circle</span>
                       <p className="font-bold text-sm">Request Placed successfully!</p>
-                      <p className="text-xs text-white/50">Your suggestion was sent directly to the broadcaster's queue.</p>
+                      <p className="text-xs text-white/50">Your suggestion was sent directly to the broadcaster&apos;s queue.</p>
                     </div>
                   ) : (
                     <form onSubmit={handleSendSongRequest} className="space-y-4 text-xs font-semibold text-white/50 select-none">
@@ -1760,12 +1658,7 @@ export default function Page() {
 
           {/* AirCue Logo identity */}
           <Link href="/" className="flex items-center gap-3.5 group px-2 hover:opacity-90 transition-opacity">
-            <div className="relative w-11 h-11 rounded-xl bg-white border border-white/10 flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform duration-300">
-              <img src="/logo.png" alt="AirCue Logo" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-display-lg text-[25px] font-black text-white tracking-tight leading-none">
-              Air<span className="text-cyan-400">Cue</span>
-            </span>
+            <img src="/logo.png" alt="AirCue Logo" className="h-20 w-auto group-hover:scale-105 transition-transform duration-300" />
           </Link>
 
           {/* Segment selection tabs */}
@@ -1881,7 +1774,19 @@ export default function Page() {
             </div>
             {appUser ? (
               <button
-                onClick={() => signOut(auth).catch(err => console.error('Sign out failed:', err))}
+                onClick={() => {
+                  showConfirm({
+                    title: 'Sign Out',
+                    message: 'Are you sure you want to sign out of your AirCue account?',
+                    type: 'warning',
+                    confirmText: 'Sign Out',
+                    cancelText: 'Cancel',
+                    isDangerous: true,
+                    onConfirm: () => {
+                      signOut(auth).catch(err => console.error('Sign out failed:', err));
+                    }
+                  });
+                }}
                 className="h-8 px-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-semibold text-[11px] hover:bg-red-500/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 Sign Out
@@ -1910,12 +1815,7 @@ export default function Page() {
             <div className="flex items-center gap-3">
               {/* Logo Brand */}
               <Link href="/" className="flex items-center gap-2.5 hover:opacity-85 transition-opacity">
-                <div className="w-8.5 h-8.5 rounded-lg bg-white border border-white/10 flex items-center justify-center p-1 shadow-md">
-                  <img src="/logo.png" alt="AirCue Logo" className="w-full h-full object-contain" />
-                </div>
-                <span className="font-display-lg text-[16px] font-black text-white tracking-tight leading-none">
-                  Air<span className="text-cyan-400">Cue</span>
-                </span>
+                <img src="/logo.png" alt="AirCue Logo" className="h-16 w-auto" />
               </Link>
             </div>
 
@@ -1993,7 +1893,7 @@ export default function Page() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search stations, genres, locations..."
+                placeholder="Search stations, genres, frequencies..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -2057,12 +1957,15 @@ export default function Page() {
                             <p className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-white/30">Radio Stations</p>
                             {matchedStations.map(station => {
                               const isActive = activeStation?.id === station.id;
-                              const count = station.id ? liveListeners[station.id]?.count : undefined;
+                              const searchListenerCount = displayCount(station.id);
                               return (
                                 <button
                                   key={station.id}
                                   onClick={() => {
-                                    handlePlay(station);
+                                    queueMicrotask(() => {
+                                      // eslint-disable-next-line react-hooks/refs -- invoked asynchronously from a click handler; audio refs are not read during render.
+                                      void handlePlay(station);
+                                    });
                                     setShowSearchModal(false);
                                     setSearchQuery('');
                                   }}
@@ -2086,11 +1989,12 @@ export default function Page() {
                                       {station.location || station.region} &bull; {station.genre}
                                     </p>
                                   </div>
-                                  {/* Listener count + play icon */}
                                   <div className="flex items-center gap-2 flex-shrink-0">
-                                    {count !== undefined && (
-                                      <span className="text-[9px] text-white/30 font-bold">{formatListeners(count)}</span>
-                                    )}
+                                    <StationListenerBadge
+                                      count={searchListenerCount}
+                                      variant="pill"
+                                      isActive={isActive && isPlaying}
+                                    />
                                     <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
                                       <span className="material-symbols-outlined text-[14px] text-white/50 group-hover:text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>
                                         {isActive && isPlaying ? 'pause' : 'play_arrow'}
@@ -2272,7 +2176,7 @@ export default function Page() {
               </h1>
               <p className="text-[14px] text-white/50 flex items-center gap-2 font-medium">
                 <span className="material-symbols-outlined text-[16px] text-white/30">
-                  {activeSegment === 'live' ? 'pin_drop' : 'podcast'}
+                  {activeSegment === 'live' ? 'radio' : 'podcast'}
                 </span>
                 {activeSegment === 'live'
                   ? (activeStation?.location || 'Unknown frequency')
@@ -2283,16 +2187,20 @@ export default function Page() {
             </div>
 
             {/* active telemetry metadata */}
-            <div className="flex items-center gap-6 mt-1 border-t border-b border-white/5 py-3.5 w-full justify-between select-none">
-              <div className="flex flex-col">
-                <span className="text-[11px] text-white/40 uppercase tracking-wider font-bold">Active Listeners</span>
-                <span className="text-xl font-bold text-white tracking-wide flex items-center gap-2 mt-0.5">
-                  <span className="material-symbols-outlined text-[18px] text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                  {activeSegment === 'live' && activeStation?.id && liveListeners[activeStation.id]?.count
-                    ? liveListeners[activeStation.id].count.toLocaleString()
-                    : '0'}
-                </span>
-              </div>
+            <div className="flex flex-wrap items-start gap-6 mt-1 border-t border-b border-white/5 py-3.5 w-full select-none">
+              {activeSegment === 'live' && activeStation?.id && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-white/40 uppercase tracking-wider font-bold">Listening now</span>
+                  <span className="text-xl font-bold text-white tracking-wide flex items-center gap-2 mt-0.5">
+                    <span className="material-symbols-outlined text-[18px] text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
+                    {displayCount(activeStation.id) > 0 ? (
+                      formatListenerLabel(displayCount(activeStation.id))
+                    ) : (
+                      <span className="text-white/35 text-base font-semibold">Be the first</span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col">
                 <span className="text-[11px] text-white/40 uppercase tracking-wider font-bold">Equalizer Preset</span>
                 <span className="text-xl font-bold tracking-wide flex items-center gap-2 mt-0.5 text-[#E6C280]">
@@ -2416,7 +2324,7 @@ export default function Page() {
               </h2>
               <p className="text-[13px] text-white/40 mt-1 font-medium">
                 {activeSegment === 'live'
-                  ? (loading ? 'Connecting live...' : `${displayedStations.length} channels online in active region`)
+                  ? (loading ? 'Connecting live...' : `Broadcasting live in ${activeRegion === 'All' ? 'all regions' : activeRegion}`)
                   : `${podcasts.length} catchups and show archives published`}
               </p>
             </div>
@@ -2450,20 +2358,16 @@ export default function Page() {
             <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide py-1.5 px-1 -mx-1">
               {GHANA_REGIONS.map((reg) => {
                 const isActive = activeRegion === reg;
-                const count = getRegionCount(reg);
                 return (
                   <button
                     key={reg}
                     onClick={() => setActiveRegion(reg)}
-                    className={`h-9 px-4 rounded-full text-[12px] font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2 border hover:scale-[1.02] active:scale-[0.98] select-none shrink-0 ${isActive
+                    className={`h-9 px-4 rounded-full text-[12px] font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center border hover:scale-[1.02] active:scale-[0.98] select-none shrink-0 ${isActive
                         ? 'bg-cyan-400 text-black border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.35)] font-bold'
                         : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20'
                       }`}
                   >
                     <span>{reg}</span>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center justify-center min-w-[20px] transition-colors duration-300 ${isActive ? 'bg-black/15 text-black/80' : 'bg-white/10 text-white/45'}`}>
-                      {count}
-                    </span>
                   </button>
                 );
               })}
@@ -2579,17 +2483,18 @@ export default function Page() {
             <p className="text-[12.5px] md:text-[14.5px] font-black text-white truncate leading-none">
               {activeSegment === 'live' ? (activeStation?.name ?? 'Select Station') : (activePodcast?.title ?? 'Select Episode')}
             </p>
-            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 flex-wrap">
               <p className="text-[10px] md:text-[11px] text-white/40 truncate font-semibold">
                 {activeSegment === 'live'
                   ? (activeStation ? activeStation.location || activeStation.region : 'Broadcast list')
                   : (activePodcast ? activePodcast.podcastName : 'Browse catchups')}
               </p>
-              {activeSegment === 'live' && activeStation?.id && liveListeners[activeStation.id]?.count !== undefined && (
-                <span className="flex-shrink-0 bg-white/5 text-white/50 px-1.5 py-0.5 rounded-lg text-[8px] md:text-[9px] font-bold flex items-center gap-0.5 border border-white/5">
-                  <span className="material-symbols-outlined text-[9px] md:text-[10px] text-cyan-400" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-                  {formatListeners(liveListeners[activeStation.id].count)}
-                </span>
+              {activeSegment === 'live' && activeStation?.id && (
+                <StationListenerBadge
+                  count={displayCount(activeStation.id)}
+                  variant="pill"
+                  isActive={isPlaying}
+                />
               )}
             </div>
           </div>

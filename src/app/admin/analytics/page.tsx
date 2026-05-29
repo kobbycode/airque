@@ -34,9 +34,7 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    if (!stations.length && loading) return;
     let active = true;
-    setLoading(true);
     buildAnalyticsSummary(stations, counts.requests, counts.podcasts, counts.schedules)
       .then(data => { if (active) { setSummary(data); setLoading(false); } })
       .catch(() => { if (active) setLoading(false); });
@@ -55,7 +53,7 @@ export default function AnalyticsPage() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="bg-white border border-outline-variant text-on-surface px-4 py-2 rounded-lg font-label-md flex items-center gap-1"
+          className="bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all text-white px-4 py-2 rounded-xl font-label-md flex items-center gap-1.5 cursor-pointer"
         >
           <span className="material-symbols-outlined text-sm">refresh</span>
           Refresh
@@ -77,13 +75,13 @@ export default function AnalyticsPage() {
           </section>
 
           <div className="grid grid-cols-12 gap-6">
-            <section className="col-span-12 lg:col-span-8 bg-white border border-outline-variant rounded-xl p-6">
-              <h3 className="font-headline-md mb-4">Weekly Listener Trend (estimated)</h3>
-              <div className="h-64 flex items-end gap-2 border-b border-l border-outline-variant/30 pl-4 pb-2">
+            <section className="col-span-12 lg:col-span-8 modern-glass border border-white/5 rounded-2xl p-6">
+              <h3 className="font-headline-md mb-4 text-white font-bold">Weekly Listener Trend (estimated)</h3>
+              <div className="h-64 flex items-end gap-2 border-b border-l border-white/10 pl-4 pb-2">
                 {summary.weeklyListeners.map((val, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center h-full justify-end">
-                    <div className="w-full bg-primary rounded-t transition-all" style={{ height: `${(val / maxWeek) * 100}%`, minHeight: '4px' }} />
-                    <span className="text-[10px] text-on-surface-variant mt-2">
+                    <div className="w-full bg-gradient-to-t from-primary/30 to-primary rounded-t transition-all shadow-[0_0_15px_rgba(230,194,128,0.15)]" style={{ height: `${(val / maxWeek) * 100}%`, minHeight: '4px' }} />
+                    <span className="text-[10px] text-white/40 mt-2 font-medium">
                       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}
                     </span>
                   </div>
@@ -91,19 +89,19 @@ export default function AnalyticsPage() {
               </div>
             </section>
 
-            <section className="col-span-12 lg:col-span-4 bg-white border border-outline-variant rounded-xl p-6">
-              <h3 className="font-headline-md mb-4">Listeners by Region</h3>
+            <section className="col-span-12 lg:col-span-4 modern-glass border border-white/5 rounded-2xl p-6">
+              <h3 className="font-headline-md mb-4 text-white font-bold">Listeners by Region</h3>
               <div className="space-y-4">
                 {summary.regionBreakdown.length === 0 ? (
-                  <p className="text-sm text-on-surface-variant">No live stations to analyze.</p>
+                  <p className="text-sm text-white/40">No live stations to analyze.</p>
                 ) : summary.regionBreakdown.map(r => (
                   <div key={r.region}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{r.region}</span>
-                      <span className="font-bold">{r.pct}%</span>
+                    <div className="flex justify-between text-sm mb-1 text-white/80">
+                      <span className="font-medium">{r.region}</span>
+                      <span className="font-bold text-primary">{r.pct}%</span>
                     </div>
-                    <div className="h-2 bg-surface-container-low rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${r.pct}%` }} />
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <div className="h-full bg-gradient-to-r from-primary/75 to-primary" style={{ width: `${r.pct}%` }} />
                     </div>
                   </div>
                 ))}
@@ -111,30 +109,32 @@ export default function AnalyticsPage() {
             </section>
           </div>
 
-          <section className="bg-white border border-outline-variant rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-outline-variant">
-              <h3 className="font-headline-md">Top Stations by Listeners</h3>
+          <section className="modern-glass border border-white/5 rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <h3 className="font-headline-md text-white font-bold">Top Stations by Listeners</h3>
             </div>
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-surface-container-low border-b border-outline-variant">
-                  <th className="p-4 text-xs uppercase text-on-surface-variant">Rank</th>
-                  <th className="p-4 text-xs uppercase text-on-surface-variant">Station</th>
-                  <th className="p-4 text-xs uppercase text-on-surface-variant">Region</th>
-                  <th className="p-4 text-xs uppercase text-on-surface-variant">Listeners</th>
-                  <th className="p-4 text-xs uppercase text-on-surface-variant">Source</th>
+                <tr className="bg-white/[0.02] border-b border-white/5">
+                  <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Rank</th>
+                  <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Station</th>
+                  <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Region</th>
+                  <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Listeners</th>
+                  <th className="p-4 text-xs uppercase text-white/40 tracking-wider font-bold">Source</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant">
+              <tbody className="divide-y divide-white/5">
                 {summary.stationRankings.map((row, i) => (
-                  <tr key={row.station.id} className="hover:bg-surface-container-low/50">
+                  <tr key={row.station.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="p-4 font-bold text-primary">#{i + 1}</td>
-                    <td className="p-4 font-semibold">{row.station.name}</td>
-                    <td className="p-4 text-sm">{row.station.region}</td>
-                    <td className="p-4">{row.listeners.toLocaleString()}</td>
+                    <td className="p-4 font-semibold text-white/90">{row.station.name}</td>
+                    <td className="p-4 text-sm text-white/70">{row.station.region}</td>
+                    <td className="p-4 text-white/80 font-mono">{row.listeners.toLocaleString()}</td>
                     <td className="p-4">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        row.source === 'live' ? 'bg-green-100 text-green-700' : 'bg-surface-container text-on-surface-variant'
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${
+                        row.source === 'live' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : 'bg-white/5 text-white/40 border-white/5'
                       }`}>
                         {row.source}
                       </span>
@@ -152,13 +152,13 @@ export default function AnalyticsPage() {
 
 function StatCard({ label, value, sub, icon }: { label: string; value: string; sub: string; icon: string }) {
   return (
-    <div className="bg-white border border-outline-variant p-6 rounded-xl">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-xs uppercase tracking-wider text-on-surface-variant">{label}</span>
+    <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform">
+      <div className="flex justify-between items-center mb-1">
+        <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">{label}</span>
         <span className="material-symbols-outlined text-primary">{icon}</span>
       </div>
-      <p className="font-display-lg text-on-surface">{value}</p>
-      <p className="text-xs text-on-surface-variant mt-1">{sub}</p>
+      <p className="font-display-lg text-[28px] font-black text-white leading-none mt-1">{value}</p>
+      <p className="text-[11px] text-white/40 font-medium mt-1">{sub}</p>
     </div>
   );
 }

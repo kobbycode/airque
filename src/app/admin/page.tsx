@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Station } from '@/lib/types';
+import { useAlert } from '@/components/CustomAlert';
+import EditStationModal from '@/components/EditStationModal';
 
 type StationStatus = 'ONLINE' | 'SILENT' | 'OFFLINE';
 
@@ -42,6 +44,8 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const { showConfirm } = useAlert();
 
   useEffect(() => {
     const q = query(collection(db, 'stations'), orderBy('createdAt', 'desc'));
@@ -67,11 +71,20 @@ export default function Page() {
   };
 
   const deleteStation = async (id: string) => {
-    if (!confirm('Delete this station? This cannot be undone.')) return;
-    setDeleting(id);
-    await deleteDoc(doc(db, 'stations', id));
-    setDeleting(null);
-    setOpenMenu(null);
+    showConfirm({
+      title: 'Delete Station Node',
+      message: 'Are you sure you want to delete this radio station node? This will terminate its broadcasting slot and remove it from the listener directory permanently.',
+      type: 'error',
+      confirmText: 'Yes, Delete Station',
+      cancelText: 'Cancel',
+      isDangerous: true,
+      onConfirm: async () => {
+        setDeleting(id);
+        await deleteDoc(doc(db, 'stations', id));
+        setDeleting(null);
+        setOpenMenu(null);
+      }
+    });
   };
 
   const accentColors = ['bg-primary', 'bg-secondary', 'bg-tertiary', 'bg-error'];
@@ -204,6 +217,13 @@ export default function Page() {
                             <span className="material-symbols-outlined text-[16px] text-cyan-400">sync</span>
                             Toggle Status
                           </button>
+                          <button
+                            onClick={() => { setEditingStation(station); setOpenMenu(null); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-bold text-white uppercase tracking-wider hover:bg-white/10 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[16px] text-cyan-400">edit</span>
+                            Edit Station
+                          </button>
                           <a
                             href={station.streamUrl}
                             target="_blank"
@@ -262,6 +282,13 @@ export default function Page() {
         </div>
       </section>
 
+      {editingStation && (
+        <EditStationModal
+          station={editingStation}
+          onClose={() => setEditingStation(null)}
+          onSuccess={() => setEditingStation(null)}
+        />
+      )}
     </div>
   );
 }

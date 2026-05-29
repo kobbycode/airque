@@ -29,14 +29,6 @@ const BITRATES = ['64kbps', '96kbps', '128kbps', '192kbps', '256kbps', '320kbps'
 
 export default function AddStationModal({ isOpen, onClose, onSuccess }: AddStationModalProps) {
   const { appUser, loading: authLoading } = useAuthState();
-
-  // Only admins can add stations through this modal
-  useEffect(() => {
-    if (!authLoading && appUser && appUser.role !== 'admin') {
-      setError('Only administrators can add stations through this modal.');
-      onClose();
-    }
-  }, [appUser, authLoading, onClose]);
   const [form, setForm] = useState<Omit<Station, 'id' | 'createdAt'>>({
     name: '',
     streamUrl: '',
@@ -55,6 +47,16 @@ export default function AddStationModal({ isOpen, onClose, onSuccess }: AddStati
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Only admins can add stations through this modal
+  useEffect(() => {
+    if (!authLoading && appUser && appUser.role !== 'admin') {
+      queueMicrotask(() => {
+        setError('Only administrators can add stations through this modal.');
+        onClose();
+      });
+    }
+  }, [appUser, authLoading, onClose]);
 
   if (!isOpen) return null;
 
@@ -101,7 +103,7 @@ export default function AddStationModal({ isOpen, onClose, onSuccess }: AddStati
         setUploading(true);
         const safeName = logoFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const storageRef = ref(storage, `station-logos/${appUser.uid}/${Date.now()}_${safeName}`);
-        const uploadTask = uploadBytesResumable(storageRef, logoFile);
+        const uploadTask = uploadBytesResumable(storageRef, logoFile, { contentType: logoFile.type });
 
         finalLogoUrl = await new Promise<string>((resolve, reject) => {
           uploadTask.on(
@@ -276,16 +278,19 @@ export default function AddStationModal({ isOpen, onClose, onSuccess }: AddStati
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Genre *</label>
-                <select
+                <input
+                  type="text"
                   name="genre"
+                  list="genre-options-add"
                   value={form.genre}
                   onChange={handleChange}
+                  placeholder="Select or type genre"
                   required
                   className="w-full bg-surface-container-low border border-outline-variant rounded-xl px-4 py-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                >
-                  <option value="">Select genre</option>
-                  {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+                />
+                <datalist id="genre-options-add">
+                  {GENRES.map(g => <option key={g} value={g} />)}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Region *</label>

@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DEMO_MODE } from '@/lib/demo';
+import { useAlert } from '@/components/CustomAlert';
 
 interface Transaction {
   id: string;
@@ -45,6 +46,7 @@ export default function RevenuePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
+  const { showAlert } = useAlert();
 
   // Firestore transaction dynamic sync & seeding
   useEffect(() => {
@@ -92,7 +94,12 @@ export default function RevenuePage() {
         status: 'PENDING',
         createdAt: serverTimestamp()
       });
-      alert(`Payout request submitted successfully for $${pendingAmount}!`);
+      showAlert({
+        title: 'Payout Request Queued',
+        message: `Payout request submitted successfully for $${pendingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}!`,
+        type: 'success',
+        confirmText: 'Done'
+      });
     } catch (err) {
       console.error('Failed to submit payout:', err);
     } finally {
@@ -127,102 +134,102 @@ export default function RevenuePage() {
         <button
           onClick={handleRequestPayout}
           disabled={requesting}
-          className="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md hover:opacity-90 active:scale-95 transition-opacity flex items-center gap-1 shadow-md disabled:opacity-50"
+          className="bg-primary text-black px-6 py-3 rounded-xl font-label-md font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+          <span className="material-symbols-outlined text-sm font-bold">account_balance_wallet</span>
           {requesting ? 'Processing…' : 'Request Payout'}
         </button>
       </div>
 
       {/* Revenue Grid */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2 shadow-sm border-l-4 border-l-primary">
-          <div className="flex justify-between items-center">
-            <span className="font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Total Earnings (YTD)</span>
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-6 text-white">
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform border-l-4 border-l-primary shadow-lg">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Total Earnings (YTD)</span>
             <span className="material-symbols-outlined text-primary">monetization_on</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-display-lg text-display-lg text-on-surface">
+            <span className="font-display-lg text-[28px] font-black text-white leading-none mt-1">
               ${totalYTD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-green-600 font-label-md text-xs font-bold">+18.2%</span>
+            <span className="text-emerald-400 font-label-md text-xs font-bold">+18.2%</span>
           </div>
-          <p className="text-body-sm text-[12px] text-on-surface-variant">Cleared and pending balances</p>
+          <p className="text-[11px] text-white/40 font-medium mt-1">Cleared and pending balances</p>
         </div>
 
-        <div className="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2 shadow-sm border-l-4 border-l-secondary">
-          <div className="flex justify-between items-center">
-            <span className="font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Audio Ad Networks</span>
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform border-l-4 border-l-secondary shadow-lg">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Audio Ad Networks</span>
             <span className="material-symbols-outlined text-secondary">campaign</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-display-lg text-display-lg text-on-surface">
+            <span className="font-display-lg text-[28px] font-black text-white leading-none mt-1">
               ${adNetworkShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-green-600 font-label-md text-xs font-bold">+14.4%</span>
+            <span className="text-emerald-400 font-label-md text-xs font-bold">+14.4%</span>
           </div>
-          <p className="text-body-sm text-[12px] text-on-surface-variant">Pre-roll & mid-roll insertions</p>
+          <p className="text-[11px] text-white/40 font-medium mt-1">Pre-roll & mid-roll insertions</p>
         </div>
 
-        <div className="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2 shadow-sm border-l-4 border-l-tertiary">
-          <div className="flex justify-between items-center">
-            <span className="font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Premium Support</span>
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform border-l-4 border-l-tertiary shadow-lg">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Premium Support</span>
             <span className="material-symbols-outlined text-tertiary">card_membership</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-display-lg text-display-lg text-on-surface">
+            <span className="font-display-lg text-[28px] font-black text-white leading-none mt-1">
               ${premiumShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-green-600 font-label-md text-xs font-bold">+22.8%</span>
+            <span className="text-emerald-400 font-label-md text-xs font-bold">+22.8%</span>
           </div>
-          <p className="text-body-sm text-[12px] text-on-surface-variant">Direct listener subscriptions</p>
+          <p className="text-[11px] text-white/40 font-medium mt-1">Direct listener subscriptions</p>
         </div>
 
-        <div className="bg-white border border-outline-variant p-6 rounded-xl flex flex-col gap-2 shadow-sm border-l-4 border-l-outline">
-          <div className="flex justify-between items-center">
-            <span className="font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Sponsorships</span>
-            <span className="material-symbols-outlined text-outline">handshake</span>
+        <div className="modern-glass border border-white/5 p-6 rounded-2xl flex flex-col gap-2 hover:-translate-y-1 transition-transform border-l-4 border-l-outline shadow-lg">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-label-md text-white/50 uppercase tracking-widest text-[10px]">Sponsorships</span>
+            <span className="material-symbols-outlined text-white/40">handshake</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="font-display-lg text-display-lg text-on-surface">
+            <span className="font-display-lg text-[28px] font-black text-white leading-none mt-1">
               ${sponsorshipShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-on-surface-variant font-label-md text-xs">Stable</span>
+            <span className="text-white/40 font-label-md text-xs">Stable</span>
           </div>
-          <p className="text-body-sm text-[12px] text-on-surface-variant">Corporate station partners</p>
+          <p className="text-[11px] text-white/40 font-medium mt-1">Corporate station partners</p>
         </div>
       </section>
 
       {/* Analytics Chart & Summary */}
       <div className="grid grid-cols-12 gap-6">
         {/* Payout Channels Breakdown */}
-        <section className="col-span-12 lg:col-span-7 bg-white border border-outline-variant rounded-xl p-6 flex flex-col gap-4 shadow-sm">
-          <h3 className="font-headline-md text-headline-md font-bold">Monthly Payout Breakdown</h3>
+        <section className="col-span-12 lg:col-span-7 modern-glass border border-white/5 rounded-2xl p-6 flex flex-col gap-4 text-white">
+          <h3 className="font-headline-md text-white font-bold">Monthly Payout Breakdown</h3>
           <div className="space-y-4 pt-4">
             <div>
-              <div className="flex justify-between text-body-sm mb-1">
+              <div className="flex justify-between text-sm mb-1 text-white/80">
                 <span>Ad Insertion CPM (Average $4.20)</span>
-                <span className="font-bold font-code">${(adNetworkShare * 0.22).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
+                <span className="font-bold text-primary font-mono">${(adNetworkShare * 0.22).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
               </div>
-              <div className="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
                 <div className="bg-primary h-full transition-all duration-500" style={{ width: '60%' }}></div>
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-body-sm mb-1">
+              <div className="flex justify-between text-sm mb-1 text-white/80">
                 <span>Direct Mobile Money Support (MTN MoMo / Telecel)</span>
-                <span className="font-bold font-code">${(premiumShare * 0.22).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
+                <span className="font-bold text-secondary font-mono">${(premiumShare * 0.22).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
               </div>
-              <div className="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
                 <div className="bg-secondary h-full transition-all duration-500" style={{ width: '38%' }}></div>
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-body-sm mb-1">
+              <div className="flex justify-between text-sm mb-1 text-white/80">
                 <span>Premium Ad-Free Tiers</span>
-                <span className="font-bold font-code">${(premiumShare * 0.08).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
+                <span className="font-bold text-tertiary font-mono">${(premiumShare * 0.08).toLocaleString('en-US', { maximumFractionDigits: 2 })} this month</span>
               </div>
-              <div className="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5">
                 <div className="bg-tertiary h-full transition-all duration-500" style={{ width: '12%' }}></div>
               </div>
             </div>
@@ -230,23 +237,23 @@ export default function RevenuePage() {
         </section>
 
         {/* Payout Info Alert Box */}
-        <section className="col-span-12 lg:col-span-5 bg-white border border-outline-variant rounded-xl p-6 flex flex-col justify-between shadow-sm">
+        <section className="col-span-12 lg:col-span-5 modern-glass border border-white/5 rounded-2xl p-6 flex flex-col justify-between text-white">
           <div>
-            <h3 className="font-headline-md text-headline-md mb-2 font-bold">Next Scheduled Payout</h3>
-            <p className="text-body-sm text-on-surface-variant">Earnings are processed on the 1st of every month automatically to your connected bank/wallet account.</p>
+            <h3 className="font-headline-md text-white mb-2 font-bold">Next Scheduled Payout</h3>
+            <p className="text-sm text-white/50 leading-relaxed">Earnings are processed on the 1st of every month automatically to your connected bank/wallet account.</p>
           </div>
-          <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4 flex flex-col gap-2 mt-4">
-            <div className="flex justify-between items-center text-body-sm">
-              <span className="text-on-surface-variant">Target Bank:</span>
-              <span className="font-bold text-on-surface">Ecobank Ghana (Accra Hub)</span>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-2 mt-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/40">Target Bank:</span>
+              <span className="font-bold text-white/90">Ecobank Ghana (Accra Hub)</span>
             </div>
-            <div className="flex justify-between items-center text-body-sm">
-              <span className="text-on-surface-variant">Account Code:</span>
-              <span className="font-bold font-code text-on-surface">**** 9428</span>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/40">Account Code:</span>
+              <span className="font-bold font-mono text-white/90">**** 9428</span>
             </div>
-            <div className="flex justify-between items-center text-body-sm">
-              <span className="text-on-surface-variant">Estimated Payout:</span>
-              <span className="font-bold text-green-600 font-code">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-white/40">Estimated Payout:</span>
+              <span className="font-bold text-emerald-400 font-mono">
                 ${totalPending > 0 ? totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '5,784.30'}
               </span>
             </div>
@@ -255,50 +262,50 @@ export default function RevenuePage() {
       </div>
 
       {/* Transactions List */}
-      <section className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-outline-variant flex justify-between items-center">
-          <h3 className="font-headline-md text-headline-md font-bold">Payout Ledger</h3>
-          <span className="text-xs text-on-surface-variant bg-surface-container-low border border-outline-variant/40 px-3 py-1 rounded-full font-semibold">
+      <section className="modern-glass border border-white/5 rounded-2xl overflow-hidden shadow-lg">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+          <h3 className="font-headline-md text-white font-bold">Payout Ledger</h3>
+          <span className="text-xs text-white/50 bg-white/5 border border-white/10 px-3 py-1 rounded-full font-semibold">
             {transactions.length} Total Transaction{transactions.length !== 1 ? 's' : ''}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="p-6 font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Transaction ID</th>
-                <th className="p-6 font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Date</th>
-                <th className="p-6 font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Method</th>
-                <th className="p-6 font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Amount</th>
-                <th className="p-6 font-label-md text-on-surface-variant uppercase tracking-wider text-xs">Status</th>
+              <tr className="bg-white/[0.02] border-b border-white/5">
+                <th className="p-6 text-xs uppercase text-white/40 tracking-wider font-bold">Transaction ID</th>
+                <th className="p-6 text-xs uppercase text-white/40 tracking-wider font-bold">Date</th>
+                <th className="p-6 text-xs uppercase text-white/40 tracking-wider font-bold">Method</th>
+                <th className="p-6 text-xs uppercase text-white/40 tracking-wider font-bold">Amount</th>
+                <th className="p-6 text-xs uppercase text-white/40 tracking-wider font-bold">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant font-code text-body-sm">
+            <tbody className="divide-y divide-white/5 font-mono text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center text-on-surface-variant">
+                  <td colSpan={5} className="p-12 text-center text-white/40">
                     <div className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-outline-variant border-t-primary rounded-full animate-spin" />
-                      <span>Loading ledger database...</span>
+                      <span className="w-4 h-4 border-2 border-white/20 border-t-primary rounded-full animate-spin" />
+                      <span className="font-sans text-xs">Loading ledger database...</span>
                     </div>
                   </td>
                 </tr>
               ) : (
                 transactions.map(txn => (
-                  <tr key={txn.id} className="hover:bg-surface-container-low/50 transition-colors">
-                    <td className="p-6 text-on-surface font-bold">{txn.txnId}</td>
-                    <td className="p-6 font-body-sm text-on-surface">{txn.date}</td>
-                    <td className="p-6 font-body-sm text-on-surface">{txn.method}</td>
-                    <td className="p-6 text-on-surface font-bold">
+                  <tr key={txn.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6 text-white/95 font-bold">{txn.txnId}</td>
+                    <td className="p-6 font-sans text-white/70">{txn.date}</td>
+                    <td className="p-6 font-sans text-white/70">{txn.method}</td>
+                    <td className="p-6 text-white/90 font-bold font-mono">
                       ${txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="p-6">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${
                         txn.status === 'PAID'
-                          ? 'bg-green-100 text-green-700'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           : txn.status === 'PENDING'
-                          ? 'bg-primary/10 text-primary animate-pulse'
-                          : 'bg-error-container/20 text-error'
+                          ? 'bg-primary/10 text-primary border-primary/20 animate-pulse'
+                          : 'bg-red-500/10 text-red-400 border-red-500/20'
                       }`}>
                         {txn.status}
                       </span>

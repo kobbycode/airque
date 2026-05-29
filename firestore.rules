@@ -115,8 +115,29 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /listenerSessions/{sessionId} {
+      // Public read so the listener directory can aggregate live counts without Cloud Functions.
+      allow read: if true;
+
+      // Note: do not use `is timestamp` with serverTimestamp() — rules see a sentinel, not a timestamp.
+      allow create, update: if request.resource.data.keys().hasOnly([
+          'stationId', 'stationName', 'state', 'createdAt', 'lastSeen', 'endedAt', 'endReason', 'userAgent'
+        ])
+        && request.resource.data.stationId is string
+        && request.resource.data.stationName is string
+        && request.resource.data.stationId.size() > 0
+        && request.resource.data.stationName.size() > 0
+        && request.resource.data.state in ['active', 'ended', 'stale']
+        && request.resource.data.keys().hasAll(['stationId', 'stationName', 'state', 'lastSeen'])
+        && (!('userAgent' in request.resource.data) || request.resource.data.userAgent is string)
+        && (!('endReason' in request.resource.data) || request.resource.data.endReason is string);
+
+      allow delete: if false;
+    }
+
     match /stationListeners/{stationId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if false;
     }
 
     match /{document=**} {
