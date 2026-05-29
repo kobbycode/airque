@@ -295,8 +295,6 @@ export default function Page() {
         return tb - ta;
       });
 
-      // Select the first station as active by default if none selected
-      setActiveStation(prev => prev || data[0]);
       setStations(data);
       setLoading(false);
     }, () => setLoading(false));
@@ -2167,7 +2165,8 @@ export default function Page() {
         {/* ────────────────────────────────────────────────────────
             CINEMATIC ACTIVE PLAYING BANNER (THE CYBER TURNTABLE)
             ──────────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-indigo-950/20 via-purple-950/15 to-[#07080f]/90 border border-white/[0.07] p-5 md:p-8 shadow-2xl flex flex-col md:flex-row items-center gap-8 justify-between min-h-[320px] shrink-0 select-none">
+        {activeSegment === 'podcast' && (
+          <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-indigo-950/20 via-purple-950/15 to-[#07080f]/90 border border-white/[0.07] p-5 md:p-8 shadow-2xl flex flex-col md:flex-row items-center gap-8 justify-between min-h-[320px] shrink-0 select-none">
 
           <div className="absolute inset-0 -z-10 pointer-events-none">
             <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[70%] bg-indigo-500/10 blur-[80px] rounded-full" />
@@ -2314,6 +2313,7 @@ export default function Page() {
           </div>
 
         </section>
+      )}
 
         {/* ────────────────────────────────────────────────────────
             QUICK ROW: RECENTLY PLAYED
@@ -2496,7 +2496,8 @@ export default function Page() {
       {/* ────────────────────────────────────────────────────────
           3.Persistent Control Player Cockpit Bar (Floating)
           ──────────────────────────────────────────────────────── */}
-      <footer className="fixed bottom-[76px] md:bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl h-20 md:h-24 bg-surface-container-highest/90 backdrop-blur-2xl border border-outline-variant/60 rounded-2xl md:rounded-[28px] z-40 flex items-center justify-between px-4 md:px-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] select-none">
+      {(activeStation || activePodcast) && (
+        <footer className="fixed bottom-[76px] md:bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-5xl h-20 md:h-24 bg-surface-container-highest/90 backdrop-blur-2xl border border-outline-variant/60 rounded-2xl md:rounded-[28px] z-40 flex items-center justify-between px-4 md:px-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] select-none">
 
         {/* Canvas Visualizer Background */}
         <div className="absolute inset-0 rounded-2xl md:rounded-[28px] overflow-hidden -z-10 opacity-75 pointer-events-none">
@@ -2507,28 +2508,28 @@ export default function Page() {
         <div className="flex items-center gap-3 md:gap-4 w-1/2 md:w-1/3 min-w-0 z-10">
           <div className={`w-10 h-10 md:w-13 md:h-13 rounded-full overflow-hidden bg-white border border-outline-variant/50 p-1 flex-shrink-0 flex items-center justify-center shadow-inner ${isPlaying ? 'vinyl-rotation animation-running' : ''
             }`}>
-            {activeSegment === 'live' ? (
+            {activePodcast ? (
+              activePodcast.logoUrl
+                ? <img className="w-full h-full object-cover rounded-full" src={activePodcast.logoUrl} alt={activePodcast.title} />
+                : <div className="w-full h-full flex items-center justify-center rounded-full bg-indigo-950 text-primary text-lg"><span className="material-symbols-outlined text-sm">mic</span></div>
+            ) : (
               activeStation?.logoUrl
                 ? <img className="w-full h-full object-contain rounded-full" src={activeStation.logoUrl} alt={activeStation.name} />
                 : renderStationLogo(activeStation?.logoUrl || '', activeStation?.name || 'AirCue', "rounded-full")
-            ) : (
-              activePodcast?.logoUrl
-                ? <img className="w-full h-full object-cover rounded-full" src={activePodcast.logoUrl} alt={activePodcast.title} />
-                : <div className="w-full h-full flex items-center justify-center rounded-full bg-indigo-950 text-primary text-lg"><span className="material-symbols-outlined text-sm">mic</span></div>
             )}
           </div>
 
           <div className="min-w-0 flex flex-col gap-0.5">
             <p className="text-[12.5px] md:text-[14.5px] font-black text-white truncate leading-none">
-              {activeSegment === 'live' ? (activeStation?.name ?? 'Select Station') : (activePodcast?.title ?? 'Select Episode')}
+              {activePodcast ? activePodcast.title : (activeStation?.name ?? 'Select Station')}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5 min-w-0 flex-wrap">
               <p className="text-[10px] md:text-[11px] text-white/40 truncate font-semibold">
-                {activeSegment === 'live'
-                  ? (activeStation ? activeStation.location || activeStation.region : 'Broadcast list')
-                  : (activePodcast ? activePodcast.podcastName : 'Browse catchups')}
+                {activePodcast
+                  ? activePodcast.podcastName
+                  : (activeStation ? activeStation.location || activeStation.region : 'Broadcast list')}
               </p>
-              {activeSegment === 'live' && activeStation?.id && (
+              {!activePodcast && activeStation?.id && (
                 <StationListenerBadge
                   count={displayCount(activeStation.id)}
                   variant="pill"
@@ -2556,8 +2557,9 @@ export default function Page() {
             <button
               onClick={togglePlayPause}
               disabled={
-                (activeSegment === 'live' && (!activeStation || !activeStation.streamUrl)) ||
-                (activeSegment === 'podcast' && (!activePodcast || !activePodcast.streamUrl))
+                activePodcast
+                  ? !activePodcast.streamUrl
+                  : (!activeStation || !activeStation.streamUrl)
               }
               className="bg-white text-black w-10 h-10 md:w-12 md:h-12 rounded-full hover:scale-105 active:scale-95 transition-all disabled:opacity-40 shadow-lg flex items-center justify-center hover:bg-cyan-300 cursor-pointer"
             >
@@ -2601,7 +2603,7 @@ export default function Page() {
           </div>
 
           {/* Podcasts duration progress seeker bar */}
-          {activeSegment === 'podcast' && activePodcast ? (
+          {activePodcast ? (
             <div className="flex items-center gap-2 w-full max-w-[130px] sm:max-w-[200px] md:max-w-[250px]">
               <span className="font-mono text-[8px] md:text-[9px] text-white/40 font-bold">{formatTime(podcastProgress)}</span>
               <input
@@ -2693,6 +2695,7 @@ export default function Page() {
         </div>
 
       </footer>
+      )}
 
       {/* ────────────────────────────────────────────────────────
           Mobile Tab Bar navigation (Solid fixed bottom bar)
