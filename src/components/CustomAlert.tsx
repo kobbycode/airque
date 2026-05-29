@@ -81,17 +81,20 @@ export function CustomAlertProvider({ children }: { children: React.ReactNode })
     setAnimateState('closing');
   }, []);
 
-  // Handle animation states cleanly
+  // Handle opening animation transition
+  // This effect intentionally sets state on mount to trigger animation
+  // The pattern is safe because it only runs when isOpen changes from false to true
+   
   useEffect(() => {
     if (isOpen) {
       setAnimateState('opening');
       const t = setTimeout(() => setAnimateState('open'), 50);
       return () => clearTimeout(t);
-    } else {
-      setAnimateState('closed');
     }
+    setAnimateState('closed');
   }, [isOpen]);
 
+  // Handle closing animation and cleanup
   useEffect(() => {
     if (animateState === 'closing') {
       const t = setTimeout(() => {

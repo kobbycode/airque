@@ -107,6 +107,10 @@ export default function AdminLayout({
             <span className="material-symbols-outlined text-[19px] transition-transform group-hover:scale-110">mic</span>
             <span className="font-semibold">Podcasts</span>
           </Link>
+          <Link className={getLinkClass('/admin/youtube')} href="/admin/youtube" prefetch={false}>
+            <span className="material-symbols-outlined text-[19px] transition-transform group-hover:scale-110">smart_display</span>
+            <span className="font-semibold">Live TV</span>
+          </Link>
 
           <p className="font-label-md text-[9px] uppercase tracking-widest text-white/35 px-3.5 mb-1.5 mt-4">Insights</p>
           <Link className={getLinkClass('/admin/analytics')} href="/admin/analytics" prefetch={false}>

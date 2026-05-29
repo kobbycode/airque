@@ -25,14 +25,12 @@ export async function buildAnalyticsSummary(
   scheduleCount: number
 ): Promise<AnalyticsSummary> {
   const online = stations.filter(s => s.status === 'ONLINE' && s.streamUrl);
-  const tick = Math.floor(Date.now() / 5000);
 
   const snapshots: StationListenerSnapshot[] = await Promise.all(
     online.map(async station => {
       const { listeners, source } = await fetchStationListenerCount(
         station.streamUrl,
-        station.id || station.name,
-        tick
+        station.id || station.name
       );
       return {
         stationId: station.id || '',

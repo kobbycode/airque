@@ -47,10 +47,9 @@ export default function ListenersPage() {
       return;
     }
     let active = true;
-    const tick = Math.floor(Date.now() / 5000);
     Promise.all(
       online.map(async s => {
-        const result = await fetchStationListenerCount(s.streamUrl, s.id!, tick);
+        const result = await fetchStationListenerCount(s.streamUrl, s.id!);
         return { id: s.id!, ...result };
       })
     ).then(results => {
@@ -62,7 +61,7 @@ export default function ListenersPage() {
     const interval = setInterval(() => {
       Promise.all(
         online.map(async s => {
-          const result = await fetchStationListenerCount(s.streamUrl, s.id!, Math.floor(Date.now() / 5000));
+          const result = await fetchStationListenerCount(s.streamUrl, s.id!);
           return { id: s.id!, ...result };
         })
       ).then(results => {

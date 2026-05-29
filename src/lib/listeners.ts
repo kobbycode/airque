@@ -3,8 +3,7 @@ import { db } from '@/lib/firebase';
 
 export async function fetchStationListenerCount(
   streamUrl: string,
-  stationId: string,
-  timeCounter = Math.floor(Date.now() / 5000)
+  stationId: string
 ): Promise<{ listeners: number; source: 'live' | 'simulated' | 'unavailable' }> {
   try {
     const docRef = doc(db, 'stationListeners', stationId);

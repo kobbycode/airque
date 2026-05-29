@@ -143,6 +143,13 @@ export interface StationListenerSnapshot {
   source: 'live' | 'simulated' | 'unavailable';
 }
 
+export interface YouTubeChannel {
+  id?: string;
+  channelId: string;
+  name: string;
+  createdAt?: Timestamp | null;
+}
+
 export function normalizeTimestamp(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;

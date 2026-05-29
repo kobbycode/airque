@@ -161,8 +161,12 @@ html, body {
   animation: bgDrift 25s ease-in-out infinite alternate;
   color: #ffffff;
   font-family: 'Exo 2', var(--font-exo2), sans-serif !important;
-  scroll-behavior: smooth;
   min-height: 100vh;
+}
+
+/* Smooth scroll for all scrollable containers */
+* {
+  scroll-behavior: smooth;
 }
 
 
@@ -438,6 +442,14 @@ html, body {
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth scrollbar styling enhancement */
+.custom-scrollbar,
+.premium-sidebar-scroll,
+.custom-thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 /* Sleek bottom player specific styles */

@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { normalizeTimestamp, type ChatMessage, type Podcast, type ScheduleBlock, type Station, type AppNotification } from '@/lib/types';
+import YouTubeLiveMonitor from '@/components/YouTubeLiveMonitor';
 import Link from 'next/link';
 import { useAuthState } from '@/lib/auth';
 import { formatListenerLabel, getDisplayListenerCount } from '@/lib/listener-presence';
@@ -98,7 +99,7 @@ export default function Page() {
   const [showVolumePopup, setShowVolumePopup] = useState(false);
 
   // Premium Features Expanded States
-  const [activeSegment, setActiveSegment] = useState<'live' | 'podcast'>('live');
+  const [activeSegment, setActiveSegment] = useState<'live' | 'podcast' | 'youtube'>('live');
   const isLiveListening =
     activeSegment === 'live' &&
     isPlaying &&
@@ -2349,6 +2350,15 @@ export default function Page() {
               >
                 Podcasts & Archive
               </button>
+              <button
+                onClick={() => setActiveSegment('youtube')}
+                className={`px-5 py-2 rounded-xl text-[12px] font-bold tracking-wide transition-all cursor-pointer ${activeSegment === 'youtube'
+                    ? 'bg-white text-black font-extrabold shadow-md'
+                    : 'text-white/55 hover:text-white'
+                  }`}
+              >
+                Live TV
+              </button>
             </div>
 
           </div>
@@ -2401,7 +2411,7 @@ export default function Page() {
                 ))}
               </div>
             )
-          ) : (
+          ) : activeSegment === 'podcast' ? (
             /* Podcast grid */
             podcastsLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2416,41 +2426,43 @@ export default function Page() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
-                {podcasts.map(podcast => {
-                  const isActive = activePodcast?.id === podcast.id && activeSegment === 'podcast';
-                  return (
-                    <div
-                      key={podcast.id}
-                      onClick={() => handlePlayPodcast(podcast)}
-                      className={`bento-hover-effect premium-card cursor-pointer p-6 flex flex-col justify-between border min-h-[170px] ${isActive ? 'gold-neon-border-active bg-white/[0.04]' : 'border-white/[0.06] hover:border-white/15'
-                        }`}
-                    >
-                      <div className="flex gap-4 items-start relative z-10">
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-inner p-1">
-                          {podcast.logoUrl
-                            ? <img src={podcast.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
-                            : <div className="w-full h-full rounded-xl bg-indigo-950 flex items-center justify-center text-primary text-lg font-bold"><span className="material-symbols-outlined">mic</span></div>}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-[15.5px] font-black text-white group-hover:text-cyan-400 transition-colors truncate leading-tight">{podcast.title}</h3>
-                          <p className="text-xs text-white/50 truncate mt-1 font-semibold">{podcast.podcastName}</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-white/40 line-clamp-2 mt-3 leading-relaxed font-semibold">{podcast.description || 'Ghana Archive Episode'}</p>
+{podcasts.map(podcast => {
+                   const isActive = activePodcast?.id === podcast.id && activeSegment === 'podcast';
+                   return (
+                     <div
+                       key={podcast.id}
+                       onClick={() => handlePlayPodcast(podcast)}
+                       className={`bento-hover-effect premium-card cursor-pointer p-6 flex flex-col justify-between border min-h-[170px] ${isActive ? 'gold-neon-border-active bg-white/[0.04]' : 'border-white/[0.06] hover:border-white/15'
+                         }`}
+                     >
+                       <div className="flex gap-4 items-start relative z-10">
+                         <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-inner p-1">
+                           {podcast.logoUrl
+                             ? <img src={podcast.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                             : <div className="w-full h-full rounded-xl bg-indigo-950 flex items-center justify-center text-primary text-lg font-bold"><span className="material-symbols-outlined">mic</span></div>}
+                         </div>
+                         <div className="min-w-0">
+                           <h3 className="text-[15.5px] font-black text-white group-hover:text-cyan-400 transition-colors truncate leading-tight">{podcast.title}</h3>
+                           <p className="text-xs text-white/50 truncate mt-1 font-semibold">{podcast.podcastName}</p>
+                         </div>
+                       </div>
+                       <p className="text-xs text-white/40 line-clamp-2 mt-3 leading-relaxed font-semibold">{podcast.description || 'Ghana Archive Episode'}</p>
 
-                      <div className="flex gap-2 mt-4 relative z-10 select-none">
-                        <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-white/5 border border-white/5 text-white/60">{podcast.genre || 'Podcast'}</span>
-                        {podcast.duration > 0 && (
-                          <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-white/5 border border-white/5 text-white/40">{formatTime(podcast.duration)}</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
+                       <div className="flex gap-2 mt-4 relative z-10 select-none">
+                         <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-white/5 border border-white/5 text-white/60">{podcast.genre || 'Podcast'}</span>
+                         {podcast.duration > 0 && (
+                           <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-white/5 border border-white/5 text-white/40">{formatTime(podcast.duration)}</span>
+                         )}
+                       </div>
+                     </div>
+                   );
+                 })}
+               </div>
+            ) ) : (
+            /* YouTube Live TV grid */
+            <YouTubeLiveMonitor />
           )}
-        </section>
+         </section>
 
       </main>
 
