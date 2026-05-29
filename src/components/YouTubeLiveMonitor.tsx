@@ -35,7 +35,7 @@ async function fetchYouTubeData(channelId: string): Promise<{ live: Video[]; arc
   const finalId = cleanId || channelId;
   
   const liveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${finalId}&type=video&eventType=live&key=${YOUTUBE_API_KEY}`;
-  const archiveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${finalId}&type=video&eventType=completed&maxResults=12&key=${YOUTUBE_API_KEY}`;
+  const archiveUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${finalId}&type=video&eventType=completed&maxResults=24&key=${YOUTUBE_API_KEY}`;
 
   const [liveRes, archiveRes] = await Promise.all([
     fetch(liveUrl).then(r => r.json()).catch(() => ({ items: [] })),
@@ -197,25 +197,35 @@ export default function YouTubeLiveMonitor() {
             ))}
           </div>
         ) : archiveVideos.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
             {archiveVideos.map((video) => (
               <div
                 key={video.id.videoId}
                 onClick={() => handleVideoClick(video)}
-                className="group cursor-pointer aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-purple-400/30 transition-all duration-300 relative"
+                className="group cursor-pointer rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-purple-400/40 transition-all duration-300 flex flex-col"
               >
-                <img
-                  src={video.snippet.thumbnails.high?.url || video.snippet.thumbnails.medium?.url}
-                  alt={video.snippet.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 md:p-3">
-                  <p className="text-white font-label-sm line-clamp-2 text-xs md:text-sm">{video.snippet.title}</p>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-500/80 backdrop-blur flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white text-lg md:text-2xl">play_arrow</span>
+                {/* Thumbnail */}
+                <div className="relative aspect-video overflow-hidden">
+                  <img
+                    src={video.snippet.thumbnails.high?.url || video.snippet.thumbnails.medium?.url}
+                    alt={video.snippet.title}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  {/* Play button overlay */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-500/90 backdrop-blur flex items-center justify-center shadow-lg">
+                      <span className="material-symbols-outlined text-white text-lg md:text-2xl">play_arrow</span>
+                    </div>
                   </div>
+                </div>
+                {/* Always-visible title */}
+                <div className="p-2.5 md:p-3 flex flex-col gap-1">
+                  <p className="text-white text-[11px] md:text-[12px] font-semibold line-clamp-2 leading-snug group-hover:text-purple-300 transition-colors">
+                    {video.snippet.title}
+                  </p>
+                  <p className="text-white/40 text-[10px] font-medium truncate">
+                    {video.snippet.channelTitle}
+                  </p>
                 </div>
               </div>
             ))}
